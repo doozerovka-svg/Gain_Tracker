@@ -23,13 +23,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Licenses & Install Android 36 SDK
+      - name: Setup Android SDK & Licenses
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" || true
+          mkdir -p "$ANDROID_HOME/licenses"
+          echo -e "8933fa6523473048516e4513a68f6d616857997c\nd56f5185479d0b7a439f7b3c2686b4d8c9c0f00c\n24333f8a63b1e99c309337449969d63d65ce1422" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo -e "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          echo -e "601085b94cd77f0b54ff86406957099ebd7f2d4e" > "$ANDROID_HOME/licenses/android-googletv-license"
+          echo -e "33b6a2b64920400829152f90011b83e0b1626be0" > "$ANDROID_HOME/licenses/google-gdk-license"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -38,13 +38,25 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest --no-daemon -Pandroid.builder.sdkDownload=true
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon -Pandroid.builder.sdkDownload=true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: workout-tracker-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: latest
+          name: Workout Tracker APK (Latest Build)
+          files: app/build/outputs/apk/debug/app-debug.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
