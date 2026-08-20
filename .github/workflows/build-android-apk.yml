@@ -2,7 +2,7 @@ name: Build Android APK & Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Android APK & Publish Artifacts
     runs-on: ubuntu-latest
 
     steps:
@@ -23,10 +23,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Fix Line Endings & Permissions for gradlew
+        run: |
+          sed -i -e 's/\r$//' ./gradlew
+          chmod +x ./gradlew
 
-      - name: Setup Android Licenses
+      - name: Setup Android SDK & Licenses
         run: |
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           mkdir -p "$SDK_ROOT/licenses"
@@ -38,17 +40,39 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Make Gradle script executable
-        run: chmod +x ./gradlew
-
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --no-daemon -Pandroid.builder.sdkDownload=true
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon -Pandroid.builder.sdkDownload=true
 
-      - name: Upload APK Artifact
+      - name: Rename APK for release
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk workout-tracker.apk
+
+      - name: Upload APK to GitHub Actions Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: workout-tracker-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: workout-tracker.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "Workout Tracker v1.0.0 (APK)"
+          body: |
+            ### 📱 Workout Tracker Android APK
+            
+            - **Файл**: `workout-tracker.apk`
+            - **Архитектура**: Local-First, Room DB, Jetpack Compose
+            - **Функционал**: Новая прогрессия нагрузок (No-AI), Zero-Scroll компактный UI, таймер отдыха, экспорт Excel/PDF.
+            
+            Нажмите на **workout-tracker.apk** ниже, чтобы скачать и установить на смартфон.
+          files: workout-tracker.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
