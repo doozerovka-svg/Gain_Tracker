@@ -52,8 +52,10 @@ jobs:
       - name: Locate and copy APK
         run: |
           mkdir -p release_apk
-          find app/build/outputs -name "*.apk" -exec cp {} release_apk/workout-tracker.apk \;
-          ls -la release_apk/
+          APK_FILE=$(find app/build -name "*.apk" | head -n 1)
+          echo "Found APK: $APK_FILE"
+          cp "$APK_FILE" release_apk/workout-tracker.apk
+          ls -lh release_apk/
 
       - name: Upload APK to GitHub Actions Artifacts
         uses: actions/upload-artifact@v4
