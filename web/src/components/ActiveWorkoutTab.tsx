@@ -20,9 +20,14 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [categories] = useState<Category[]>(() => AppDatabase.getCategories());
   const [exercises, setExercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
   const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => {
+    // Priority: last set in active session > last used exercise from history > first exercise
     const active = AppDatabase.getActiveSession();
-    const lastSet = active?.sets && active.sets.length > 0 ? active.sets[active.sets.length - 1] : null;
-    return lastSet ? lastSet.exerciseId : (exercises[0]?.id || 1);
+    const lastSetInActive = active?.sets && active.sets.length > 0 ? active.sets[active.sets.length - 1] : null;
+    if (lastSetInActive) return lastSetInActive.exerciseId;
+    const lastUsed = AppDatabase.getLastUsedExerciseId();
+    if (lastUsed) return lastUsed;
+    const exList = AppDatabase.getExercises();
+    return exList[0]?.id || 1;
   });
   const [activeSession, setActiveSession] = useState<WorkoutSessionWithSets | null>(() => AppDatabase.getActiveSession());
   

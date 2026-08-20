@@ -16,6 +16,7 @@ interface WorkoutRepository {
     suspend fun deleteSession(sessionId: Long)
     suspend fun getLastCompletedSetForExercise(exerciseId: Long, beforeDate: Long): SetEntry?
     suspend fun getCompletedSetsForExercise(exerciseId: Long): List<SetEntry>
+    suspend fun getLastUsedExerciseId(): Long?
     suspend fun insertSet(set: SetEntry): Long
     suspend fun updateSet(set: SetEntry)
     suspend fun deleteSet(setId: Long)

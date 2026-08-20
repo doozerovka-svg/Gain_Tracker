@@ -102,6 +102,10 @@ class WorkoutRepositoryImpl(
         return setDao.getCompletedSetsForExercise(exerciseId).map { it.toDomain() }
     }
 
+    override suspend fun getLastUsedExerciseId(): Long? {
+        return setDao.getLastUsedExerciseId()
+    }
+
     override suspend fun insertSet(set: SetEntry): Long {
         return setDao.insertSet(SetEntryEntity.fromDomain(set))
     }

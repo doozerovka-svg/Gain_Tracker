@@ -265,6 +265,23 @@ export class AppDatabase {
     return sets[0];
   }
 
+  /** Returns the exerciseId most recently used in any completed session — used to auto-select on new workout start. */
+  static getLastUsedExerciseId(): number | null {
+    const completedSessions = this.getSessions()
+      .filter((s) => s.status === 'COMPLETED')
+      .sort((a, b) => b.date - a.date);
+    if (completedSessions.length === 0) return null;
+
+    const allSets = this.getSets();
+    for (const session of completedSessions) {
+      const sessionSets = allSets
+        .filter((s) => s.workoutSessionId === session.id && s.isCompleted)
+        .sort((a, b) => b.id - a.id);
+      if (sessionSets.length > 0) return sessionSets[0].exerciseId;
+    }
+    return null;
+  }
+
   static cloneSession(sourceSessionId: number, targetDate: number): number {
     const sourceSession = this.getSessions().find((s) => s.id === sourceSessionId);
     if (!sourceSession) throw new Error('Исходная сессия не найдена');

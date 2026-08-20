@@ -118,14 +118,15 @@ class ActiveWorkoutViewModel(
         viewModelScope.launch {
             workoutRepository.getActiveSession().collect { activeSession ->
                 val prevSelectedId = _uiState.value.selectedExerciseId
+
+                // Determine exercise to show: previously selected > last set in current session > don't override
                 val newSelectedId = prevSelectedId
                     ?: activeSession?.sets?.lastOrNull()?.exerciseId
-                    ?: _uiState.value.exercises.firstOrNull()?.id
 
                 _uiState.update { current ->
                     current.copy(
                         sessionWithSets = activeSession,
-                        selectedExerciseId = newSelectedId,
+                        selectedExerciseId = newSelectedId ?: current.selectedExerciseId,
                         isLoading = false
                     )
                 }
@@ -146,6 +147,7 @@ class ActiveWorkoutViewModel(
                 Pair(exercises, categories)
             }.collect { (exercises, categories) ->
                 val prevSelectedId = _uiState.value.selectedExerciseId
+                // Only fall back to first exercise if nothing is selected yet and no history-based selection
                 val newSelectedId = prevSelectedId ?: exercises.firstOrNull()?.id
 
                 _uiState.update { current ->
@@ -174,10 +176,16 @@ class ActiveWorkoutViewModel(
 
     fun startNewWorkout() {
         viewModelScope.launch {
-            val sessionId = workoutRepository.startNewSession(
+            workoutRepository.startNewSession(
                 date = System.currentTimeMillis(),
                 notes = "Силовая тренировка"
             )
+            // Immediately pre-select last used exercise from history so recommendations show right away
+            val lastExerciseId = workoutRepository.getLastUsedExerciseId()
+            if (lastExerciseId != null) {
+                _uiState.update { it.copy(selectedExerciseId = lastExerciseId) }
+                loadAutoPopulatedAndProgression(lastExerciseId)
+            }
             _uiState.update { it.copy(userMessage = "Тренировка начата") }
         }
     }

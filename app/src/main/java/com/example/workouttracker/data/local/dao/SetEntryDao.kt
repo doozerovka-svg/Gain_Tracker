@@ -38,6 +38,20 @@ interface SetEntryDao {
     """)
     suspend fun getCompletedSetsForExercise(exerciseId: Long): List<SetEntryEntity>
 
+    /**
+     * Returns the exerciseId most recently used across ALL completed sessions.
+     * Used to pre-select an exercise and show progression recommendations immediately when a new session starts.
+     */
+    @Query("""
+        SELECT s.exerciseId FROM set_entries s
+        INNER JOIN workout_sessions w ON s.workoutSessionId = w.id
+        WHERE w.status = 'COMPLETED'
+          AND s.isCompleted = 1
+        ORDER BY w.date DESC, s.id DESC
+        LIMIT 1
+    """)
+    suspend fun getLastUsedExerciseId(): Long?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSet(set: SetEntryEntity): Long
 
