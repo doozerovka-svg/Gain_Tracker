@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream
 /**
  * End-to-End integration test: Tier 4 Real-World Workload Scenario.
  * Simulates a 3-week progression cycle across bench press, verifying the full chain:
- * Progression Engine → 1RM Calculator → Excel Export.
+ * Multi-factor Progression Engine → 1RM Calculator → Excel Export.
  */
 class ProgressionCycleE2ETest {
 
@@ -32,42 +32,40 @@ class ProgressionCycleE2ETest {
     )
 
     /**
-     * Week 1: 100 kg × 8 reps, RIR 1 → Engine suggests 105 kg (+5%)
-     * Week 2: 105 kg × 8 reps, RIR 3 → Engine suggests 107.5 kg (+2% rounded)
+     * Week 1: 100 kg × 9 reps (+1 overshoot), RIR 3 → Engine suggests 105 kg (+5%)
+     * Week 2: 105 kg × 8 reps, RIR 1 → Engine suggests 107.5 kg (+2.5 kg plate bump)
      * Week 3: 107.5 kg × 6 reps (plan 8 missed) → Engine holds 107.5 kg
      */
     @Test
-    fun `three week progression cycle follows spec exactly`() {
+    fun `three week progression cycle follows multi-factor autoregulation spec`() {
         // ===== WEEK 1 =====
         val week1Result = progressionUseCase.execute(
             previousWeightKg = 100.0,
-            actualReps = 8,
-            actualRir = 1,
+            actualReps = 9,
+            actualRir = 3,
             config = benchPressConfig
         )
         assertThat(week1Result.recommendedWeightKg).isEqualTo(105.0)
-        assertThat(week1Result.deltaApplied).isEqualTo(0.05)
         assertThat(week1Result.recommendedReps).isEqualTo(8)
 
-        // Verify 1RM for week 1: 100 * (1 + 8/30) = 126.67
-        val week1OneRM = oneRepMaxUseCase.calculateEpley(100.0, 8)
-        assertThat(week1OneRM).isEqualTo(126.67)
+        // Verify 1RM for week 1: 100 * (1 + 9/30) = 130.0
+        val week1OneRM = oneRepMaxUseCase.calculateEpley(100.0, 9)
+        assertThat(week1OneRM).isEqualTo(130.0)
 
         // ===== WEEK 2 =====
         val week2Result = progressionUseCase.execute(
             previousWeightKg = 105.0,
             actualReps = 8,
-            actualRir = 3,
+            actualRir = 1,
             config = benchPressConfig
         )
         assertThat(week2Result.recommendedWeightKg).isEqualTo(107.5)
-        assertThat(week2Result.deltaApplied).isEqualTo(0.02)
 
         // Verify 1RM for week 2: 105 * (1 + 8/30) = 133.0
         val week2OneRM = oneRepMaxUseCase.calculateEpley(105.0, 8)
         assertThat(week2OneRM).isEqualTo(133.0)
 
-        // 1RM should increase week over week
+        // 1RM increases week over week
         assertThat(week2OneRM).isGreaterThan(week1OneRM)
 
         // ===== WEEK 3 =====
@@ -88,15 +86,12 @@ class ProgressionCycleE2ETest {
 
     @Test
     fun `progression results are fully offline with no network dependency`() {
-        // This test verifies the contract that all calculations are pure functions
-        // with no network, API, or AI dependencies
         val result = progressionUseCase.execute(
             previousWeightKg = 100.0,
             actualReps = 8,
             actualRir = 1,
             config = benchPressConfig
         )
-        // If we got here without timeout or exception, it's offline
         assertThat(result.recommendedWeightKg).isGreaterThan(0.0)
     }
 
@@ -114,28 +109,22 @@ class ProgressionCycleE2ETest {
 
         val bytes = output.toByteArray()
         assertThat(bytes.size).isGreaterThan(0)
-
-        // Verify it's a valid ZIP (xlsx)
         assertThat(bytes[0]).isEqualTo('P'.code.toByte())
         assertThat(bytes[1]).isEqualTo('K'.code.toByte())
     }
 
     @Test
     fun `rounding consistency across inventory steps`() {
-        // 1.25 kg step
         val config125 = benchPressConfig.copy(minStepKg = 1.25)
-        val result = progressionUseCase.execute(80.0, 8, 1, config125)
-        // 80 * 1.05 = 84.0 → round(84/1.25)*1.25 = 67.2*1.25 = round(67.2)*1.25 = 67*1.25 = 83.75
+        val result = progressionUseCase.execute(80.0, 9, 3, config125)
         assertThat(result.recommendedWeightKg % 1.25).isEqualTo(0.0)
 
-        // 2.5 kg step
         val config25 = benchPressConfig.copy(minStepKg = 2.5)
-        val result2 = progressionUseCase.execute(80.0, 8, 1, config25)
+        val result2 = progressionUseCase.execute(80.0, 9, 3, config25)
         assertThat(result2.recommendedWeightKg % 2.5).isEqualTo(0.0)
 
-        // 5 kg step
         val config5 = benchPressConfig.copy(minStepKg = 5.0)
-        val result3 = progressionUseCase.execute(80.0, 8, 1, config5)
+        val result3 = progressionUseCase.execute(80.0, 9, 3, config5)
         assertThat(result3.recommendedWeightKg % 5.0).isEqualTo(0.0)
     }
 
@@ -153,7 +142,6 @@ class ProgressionCycleE2ETest {
             actualRir = 0,
             config = benchPressConfig
         )
-        // Should not crash, should return something sensible
         assertThat(result.recommendedWeightKg).isAtLeast(0.0)
     }
 

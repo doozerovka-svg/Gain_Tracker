@@ -16,14 +16,71 @@ class CalculateProgressionUseCaseTest {
     }
 
     @Test
-    fun `high effort RIR 1 and plan met increases weight by 5 percent rounded to step`() {
+    fun `super-easy rep overshoot RIR 4 with 10 reps on 8 target gives aggressive bump`() {
         val config = ProgressConfig(
             exerciseId = 1,
             minStepKg = 2.5,
-            progressionPercentHeavy = 0.05,
             targetReps = 8
         )
-        // 100 * 1.05 = 105.0 -> rounded to step 2.5 = 105.0
+        // 100 * 1.075 = 107.5 kg
+        val result = useCase.execute(
+            previousWeightKg = 100.0,
+            actualReps = 10,
+            actualRir = 4,
+            config = config
+        )
+
+        assertThat(result.recommendedWeightKg).isEqualTo(107.5)
+        assertThat(result.recommendedReps).isEqualTo(8)
+        assertThat(result.explanationRu).contains("легкая")
+    }
+
+    @Test
+    fun `confident reserve RIR 3 with 9 reps gives standard 5 percent increase`() {
+        val config = ProgressConfig(
+            exerciseId = 1,
+            minStepKg = 2.5,
+            targetReps = 8
+        )
+        // 100 * 1.05 = 105.0 kg
+        val result = useCase.execute(
+            previousWeightKg = 100.0,
+            actualReps = 9,
+            actualRir = 3,
+            config = config
+        )
+
+        assertThat(result.recommendedWeightKg).isEqualTo(105.0)
+        assertThat(result.recommendedReps).isEqualTo(8)
+        assertThat(result.explanationRu).contains("5%")
+    }
+
+    @Test
+    fun `exact target reps with comfortable RIR 2 applies double progression reps plus one`() {
+        val config = ProgressConfig(
+            exerciseId = 1,
+            minStepKg = 2.5,
+            targetReps = 8
+        )
+        val result = useCase.execute(
+            previousWeightKg = 100.0,
+            actualReps = 8,
+            actualRir = 2,
+            config = config
+        )
+
+        assertThat(result.recommendedWeightKg).isEqualTo(100.0) // weight holds
+        assertThat(result.recommendedReps).isEqualTo(9) // reps increase!
+        assertThat(result.explanationRu).contains("Двойная прогрессия")
+    }
+
+    @Test
+    fun `exact target reps with high effort RIR 1 gives plus one plate step bump`() {
+        val config = ProgressConfig(
+            exerciseId = 1,
+            minStepKg = 2.5,
+            targetReps = 8
+        )
         val result = useCase.execute(
             previousWeightKg = 100.0,
             actualReps = 8,
@@ -31,139 +88,32 @@ class CalculateProgressionUseCaseTest {
             config = config
         )
 
-        assertThat(result.recommendedWeightKg).isEqualTo(105.0)
+        assertThat(result.recommendedWeightKg).isEqualTo(102.5) // +2.5 kg step
         assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.05)
-        assertThat(result.explanationRu).contains("5%")
+        assertThat(result.explanationRu).contains("Шаг веса")
     }
 
     @Test
-    fun `high effort RIR 0 and reps exceeded increases weight by 5 percent`() {
+    fun `exact target reps at absolute failure RIR 0 holds weight for adaptation`() {
         val config = ProgressConfig(
             exerciseId = 1,
             minStepKg = 2.5,
-            progressionPercentHeavy = 0.05,
             targetReps = 8
         )
         val result = useCase.execute(
             previousWeightKg = 100.0,
-            actualReps = 10,
-            actualRir = 0,
-            config = config
-        )
-
-        assertThat(result.recommendedWeightKg).isEqualTo(105.0)
-        assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.05)
-    }
-
-    @Test
-    fun `high effort on light weight ensures at least one step increase`() {
-        val config = ProgressConfig(
-            exerciseId = 1,
-            minStepKg = 2.5,
-            progressionPercentHeavy = 0.05,
-            targetReps = 8
-        )
-        // 20 * 1.05 = 21.0 -> round(21/2.5)*2.5 = 20.0 <= 20.0 -> bumps to 22.5
-        val result = useCase.execute(
-            previousWeightKg = 20.0,
             actualReps = 8,
             actualRir = 0,
             config = config
         )
 
-        assertThat(result.recommendedWeightKg).isEqualTo(22.5)
+        assertThat(result.recommendedWeightKg).isEqualTo(100.0) // holds
         assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.05)
+        assertThat(result.explanationRu).contains("адаптации")
     }
 
     @Test
-    fun `moderate effort RIR 3 and plan met increases weight by 2 percent when step allows`() {
-        val config = ProgressConfig(
-            exerciseId = 1,
-            minStepKg = 2.5,
-            progressionPercentModerate = 0.02,
-            targetReps = 8
-        )
-        // 100 * 1.02 = 102.0 -> round(102.0 / 2.5) * 2.5 = 41 * 2.5 = 102.5
-        val result = useCase.execute(
-            previousWeightKg = 100.0,
-            actualReps = 8,
-            actualRir = 3,
-            config = config
-        )
-
-        assertThat(result.recommendedWeightKg).isEqualTo(102.5)
-        assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.02)
-        assertThat(result.explanationRu).contains("2%")
-    }
-
-    @Test
-    fun `moderate effort RIR 2 on heavy weight rounds to nearest inventory step`() {
-        val config = ProgressConfig(
-            exerciseId = 1,
-            minStepKg = 2.5,
-            progressionPercentModerate = 0.02,
-            targetReps = 8
-        )
-        // 150 * 1.02 = 153.0 -> round(153/2.5)*2.5 = round(61.2)*2.5 = 61 * 2.5 = 152.5
-        val result = useCase.execute(
-            previousWeightKg = 150.0,
-            actualReps = 8,
-            actualRir = 2,
-            config = config
-        )
-
-        assertThat(result.recommendedWeightKg).isEqualTo(152.5)
-        assertThat(result.recommendedReps).isEqualTo(8)
-    }
-
-    @Test
-    fun `moderate effort deadband recommends plus one rep progression`() {
-        val config = ProgressConfig(
-            exerciseId = 1,
-            minStepKg = 2.5,
-            progressionPercentModerate = 0.02,
-            targetReps = 8
-        )
-        // 20 * 1.02 = 20.4 -> round(20.4/2.5)*2.5 = 20.0 (deadband!)
-        val result = useCase.execute(
-            previousWeightKg = 20.0,
-            actualReps = 8,
-            actualRir = 2,
-            config = config
-        )
-
-        assertThat(result.recommendedWeightKg).isEqualTo(20.0)
-        assertThat(result.recommendedReps).isEqualTo(9) // +1 rep
-        assertThat(result.deltaApplied).isEqualTo(0.02)
-        assertThat(result.explanationRu).contains("увеличить повторения")
-    }
-
-    @Test
-    fun `moderate effort deadband with high reps recommends plus one rep`() {
-        val config = ProgressConfig(
-            exerciseId = 1,
-            minStepKg = 2.5,
-            progressionPercentModerate = 0.02,
-            targetReps = 10
-        )
-        // 10 * 1.02 = 10.2 -> round(10.2/2.5)*2.5 = 10.0
-        val result = useCase.execute(
-            previousWeightKg = 10.0,
-            actualReps = 12,
-            actualRir = 4,
-            config = config
-        )
-
-        assertThat(result.recommendedWeightKg).isEqualTo(10.0)
-        assertThat(result.recommendedReps).isEqualTo(13)
-    }
-
-    @Test
-    fun `plan missed holds weight and resets recommended reps to target`() {
+    fun `mild plan undershoot 7 of 8 holds weight`() {
         val config = ProgressConfig(
             exerciseId = 1,
             minStepKg = 2.5,
@@ -171,34 +121,34 @@ class CalculateProgressionUseCaseTest {
         )
         val result = useCase.execute(
             previousWeightKg = 100.0,
-            actualReps = 6, // missed target of 8
+            actualReps = 7,
             actualRir = 0,
             config = config
         )
 
         assertThat(result.recommendedWeightKg).isEqualTo(100.0)
         assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.0)
         assertThat(result.explanationRu).contains("не выполнен")
     }
 
     @Test
-    fun `zero reps complete failure holds weight safely`() {
+    fun `severe failure 4 of 8 at RIR 0 triggers deload minus 10 percent`() {
         val config = ProgressConfig(
             exerciseId = 1,
             minStepKg = 2.5,
             targetReps = 8
         )
+        // 100 * 0.90 = 90.0 kg
         val result = useCase.execute(
-            previousWeightKg = 120.0,
-            actualReps = 0,
+            previousWeightKg = 100.0,
+            actualReps = 4,
             actualRir = 0,
             config = config
         )
 
-        assertThat(result.recommendedWeightKg).isEqualTo(120.0)
-        assertThat(result.recommendedReps).isEqualTo(8)
-        assertThat(result.deltaApplied).isEqualTo(0.0)
+        assertThat(result.recommendedWeightKg).isEqualTo(90.0)
+        assertThat(result.deltaApplied).isEqualTo(-0.10)
+        assertThat(result.explanationRu).contains("Deload")
     }
 
     @Test

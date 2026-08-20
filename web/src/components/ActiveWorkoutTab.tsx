@@ -5,7 +5,7 @@ import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
 import { 
   Play, CheckCircle2, PlusCircle, 
-  Sparkles, Pause, SkipForward, Trash2, Delete
+  Sparkles, Pause, SkipForward, Trash2, Timer, Zap
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -22,14 +22,11 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [weightKg, setWeightKg] = useState<number>(80);
   const [reps, setReps] = useState<number>(8);
   const [rir, setRir] = useState<number>(2);
-  const [isNumericKeypadOpen, setIsNumericKeypadOpen] = useState(false);
-  const [rawWeightStr, setRawWeightStr] = useState('80');
 
   // Rest timer
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [timerSecondsLeft, setTimerSecondsLeft] = useState(90);
-  const [totalTimerSeconds, setTotalTimerSeconds] = useState(90);
 
   // Status message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -57,13 +54,12 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   useEffect(() => {
     if (autoPopulated) {
       const initWeight = progressionResult ? progressionResult.recommendedWeightKg : autoPopulated.weightKg;
+      const initReps = progressionResult ? progressionResult.recommendedReps : autoPopulated.reps;
       setWeightKg(initWeight);
-      setRawWeightStr(initWeight.toString());
-      setReps(autoPopulated.reps || 8);
+      setReps(initReps || 8);
       setRir(autoPopulated.rir || 2);
     } else {
       setWeightKg(selectedExercise?.isBodyweight ? 0 : 50);
-      setRawWeightStr(selectedExercise?.isBodyweight ? '0' : '50');
       setReps(8);
       setRir(2);
     }
@@ -83,9 +79,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
             );
             return 0;
           }
-          if (prev === 4) {
-            AudioNotificationService.playBeep(440, 0.1, 1);
-          } else if (prev === 3) {
+          if (prev === 4 || prev === 3) {
             AudioNotificationService.playBeep(440, 0.1, 1);
           } else if (prev === 2) {
             AudioNotificationService.playBeep(880, 0.15, 1);
@@ -115,27 +109,6 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const handleIncrementWeight = (delta: number) => {
     const next = Math.max(0, Math.round((weightKg + delta) * 10) / 10);
     setWeightKg(next);
-    setRawWeightStr(next.toString());
-  };
-
-  const handleKeypadPress = (val: string) => {
-    if (val === 'C') {
-      setRawWeightStr('0');
-      setWeightKg(0);
-    } else if (val === 'DEL') {
-      const nextStr = rawWeightStr.length > 1 ? rawWeightStr.slice(0, -1) : '0';
-      setRawWeightStr(nextStr);
-      setWeightKg(parseFloat(nextStr) || 0);
-    } else if (val === '.') {
-      if (!rawWeightStr.includes('.')) {
-        const nextStr = rawWeightStr + '.';
-        setRawWeightStr(nextStr);
-      }
-    } else {
-      const nextStr = rawWeightStr === '0' ? val : rawWeightStr + val;
-      setRawWeightStr(nextStr);
-      setWeightKg(parseFloat(nextStr) || 0);
-    }
   };
 
   const handleSaveSet = () => {
@@ -163,9 +136,8 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     setActiveSession(AppDatabase.getActiveSession());
     onRefresh();
 
-    // Start auto rest timer (90s)
+    // Start auto rest timer
     const restTime = selectedExercise?.defaultRestTimeSeconds || 90;
-    setTotalTimerSeconds(restTime);
     setTimerSecondsLeft(restTime);
     setIsTimerRunning(true);
     setIsTimerPaused(false);
@@ -198,291 +170,248 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const totalVolume = activeSession?.sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0) || 0;
   const totalSets = activeSession?.sets.length || 0;
 
+  const rirOptions = [
+    { value: 0, label: '0', desc: 'Отказ', color: 'bg-red-500/20 text-red-300 border-red-500/40' },
+    { value: 1, label: '1', desc: 'Предел', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
+    { value: 2, label: '2', desc: 'Рабочий', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
+    { value: 3, label: '3', desc: 'Запас', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+    { value: 4, label: '4', desc: 'Легко', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
+    { value: 5, label: '5+', desc: 'Разминка', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' },
+  ];
+
   return (
-    <div className="space-y-4 pb-20 max-w-xl mx-auto">
-      {/* Toast */}
+    <div className="space-y-2.5 max-w-xl mx-auto pb-16">
+      {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-bounce">
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-xl text-xs font-semibold animate-bounce">
           {toastMessage}
         </div>
       )}
 
-      {/* Top Session Bar */}
-      <div className="bg-slate-800/80 border border-slate-700/60 backdrop-blur rounded-2xl p-4 flex items-center justify-between shadow-sm">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-blue-400">
-            {activeSession ? 'Активная сессия' : 'Сессия не начата'}
-          </div>
-          <div className="text-lg font-bold text-white">
-            {activeSession ? (
-              <span>Подходов: {totalSets} • Объём: {totalVolume.toFixed(1)} кг</span>
-            ) : (
-              <span>Готовы к тренировке?</span>
-            )}
+      {/* 1. Compact Header Bar (Status + Timer + Finish) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="text-xs">
+            <span className="text-slate-400">Сетов: </span>
+            <b className="text-white">{totalSets}</b>
+            <span className="text-slate-400 ml-2">Объём: </span>
+            <b className="text-white">{totalVolume.toFixed(0)} кг</b>
           </div>
         </div>
 
-        {activeSession ? (
-          <button
-            onClick={handleCompleteWorkout}
-            className="touch-target bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl flex items-center gap-2 shadow-md transition"
-          >
-            <CheckCircle2 size={18} />
-            Завершить
-          </button>
-        ) : (
-          <button
-            onClick={handleStartWorkout}
-            className="touch-target bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-xl flex items-center gap-2 shadow-md transition"
-          >
-            <Play size={18} />
-            Начать
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isTimerRunning && (
+            <div className="flex items-center gap-1 bg-blue-950/80 border border-blue-500/50 px-2 py-0.5 rounded-lg text-blue-300 text-xs font-mono font-bold">
+              <Timer size={13} className="text-blue-400 animate-spin" />
+              <span>{Math.floor(timerSecondsLeft / 60)}:{(timerSecondsLeft % 60).toString().padStart(2, '0')}</span>
+              <button
+                onClick={() => setIsTimerPaused(!isTimerPaused)}
+                className="hover:text-white ml-0.5 p-0.5"
+              >
+                {isTimerPaused ? <Play size={11} /> : <Pause size={11} />}
+              </button>
+              <button
+                onClick={() => setIsTimerRunning(false)}
+                className="hover:text-red-400 p-0.5"
+              >
+                <SkipForward size={11} />
+              </button>
+            </div>
+          )}
+
+          {activeSession ? (
+            <button
+              onClick={handleCompleteWorkout}
+              className="touch-target h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg flex items-center gap-1 shadow transition"
+            >
+              <CheckCircle2 size={14} />
+              Завершить
+            </button>
+          ) : (
+            <button
+              onClick={handleStartWorkout}
+              className="touch-target h-8 px-3 text-xs bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg flex items-center gap-1 shadow transition"
+            >
+              <Play size={14} />
+              Старт
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Rest Timer Banner */}
-      {isTimerRunning && (
-        <div className="bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border border-blue-500/40 rounded-2xl p-4 text-white flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12 flex items-center justify-center">
-              <svg className="w-12 h-12 -rotate-90">
-                <circle cx="24" cy="24" r="20" className="stroke-slate-700" strokeWidth="4" fill="none" />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  className="stroke-blue-400 transition-all duration-1000"
-                  strokeWidth="4"
-                  fill="none"
-                  strokeDasharray={125.6}
-                  strokeDashoffset={125.6 * (1 - timerSecondsLeft / totalTimerSeconds)}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span className="absolute text-xs font-bold">{timerSecondsLeft}s</span>
-            </div>
-            <div>
-              <div className="text-xs text-blue-300 font-medium">Таймер отдыха</div>
-              <div className="text-sm font-bold">
-                {Math.floor(timerSecondsLeft / 60)}:{(timerSecondsLeft % 60).toString().padStart(2, '0')}
-              </div>
-            </div>
-          </div>
+      {/* 2. Compact Exercise Selector & One-Line Progression Hint */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedExerciseId}
+            onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500"
+          >
+            {exercises.map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.name} {ex.isBodyweight ? '(Собственный вес)' : ''}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setTimerSecondsLeft((p) => p + 30)}
-              className="touch-target px-2.5 py-1 text-xs bg-slate-700/80 hover:bg-slate-600 rounded-lg text-slate-200"
-            >
-              +30с
-            </button>
-            <button
-              onClick={() => setIsTimerPaused(!isTimerPaused)}
-              className="touch-target p-2 text-slate-200 hover:text-white"
-            >
-              {isTimerPaused ? <Play size={18} /> : <Pause size={18} />}
-            </button>
-            <button
-              onClick={() => setIsTimerRunning(false)}
-              className="touch-target p-2 text-slate-400 hover:text-red-400"
-            >
-              <SkipForward size={18} />
-            </button>
-          </div>
+          {progressionResult && (
+            <div className="flex items-center gap-1 bg-indigo-950/80 border border-indigo-500/40 px-2 py-1.5 rounded-lg text-[11px] font-bold text-indigo-300 shrink-0">
+              <Zap size={12} className="text-indigo-400" />
+              <span>Цель: {progressionResult.recommendedWeightKg} кг × {progressionResult.recommendedReps}</span>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Exercise Selection */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-          Выбор упражнения
-        </label>
-        <select
-          value={selectedExerciseId}
-          onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
-          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-blue-500 transition"
-        >
-          {exercises.map((ex) => (
-            <option key={ex.id} value={ex.id}>
-              {ex.name} {ex.isBodyweight ? '(Собственный вес)' : ''}
-            </option>
-          ))}
-        </select>
-
-        {/* Progression Hint Banner (No-AI deterministic formula) */}
         {progressionResult && (
-          <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-indigo-200">
-            <Sparkles className="text-indigo-400 shrink-0 mt-0.5" size={16} />
-            <div>
-              <span className="font-semibold text-indigo-300">Алгоритмическая прогрессия: </span>
-              {progressionResult.explanationRu}
-            </div>
+          <div className="text-[11px] text-indigo-200/90 leading-tight px-1 truncate" title={progressionResult.explanationRu}>
+            <Sparkles size={11} className="inline mr-1 text-indigo-400" />
+            {progressionResult.explanationRu}
           </div>
         )}
       </div>
 
-      {/* Set Input Box (Weight + Reps + RIR) */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-5">
-        {/* Weight Section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Рабочий вес (кг)
-            </span>
-            <button
-              onClick={() => setIsNumericKeypadOpen(!isNumericKeypadOpen)}
-              className="text-xs text-blue-400 hover:text-blue-300 font-medium"
-            >
-              {isNumericKeypadOpen ? 'Скрыть клавиатуру' : 'Ввод цифрами'}
-            </button>
+      {/* 3. Two-Column Input Grid (Weight on Left + Reps on Right) */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Weight Column */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span>Вес</span>
+            <span className="text-white font-extrabold text-xs">{weightKg} кг</span>
           </div>
 
-          <div className="flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-700 rounded-xl p-3">
+          {/* Stepper */}
+          <div className="flex items-center justify-between gap-1 bg-slate-950 border border-slate-700 rounded-lg p-1">
             <button
               onClick={() => handleIncrementWeight(-2.5)}
-              className="touch-target w-12 h-12 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-lg font-bold transition"
+              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-bold"
             >
               -2.5
             </button>
-            <div className="text-center">
-              <span className="text-3xl font-extrabold text-white tracking-tight">{weightKg}</span>
-              <span className="text-sm text-slate-400 ml-1">кг</span>
-            </div>
+            <span className="text-xl font-black text-white">{weightKg}</span>
             <button
               onClick={() => handleIncrementWeight(2.5)}
-              className="touch-target w-12 h-12 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-lg font-bold transition"
+              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-bold"
             >
               +2.5
             </button>
           </div>
 
-          {/* Quick Increment Buttons (+1, +2.5, +5, +10, +20 kg) */}
-          <div className="grid grid-cols-5 gap-2 mt-2">
-            {[1, 2.5, 5, 10, 20].map((inc) => (
+          {/* Micro Chips */}
+          <div className="grid grid-cols-4 gap-1">
+            {[1, 2.5, 5, 10].map((inc) => (
               <button
                 key={inc}
                 onClick={() => handleIncrementWeight(inc)}
-                className="touch-target bg-slate-800 hover:bg-blue-600 hover:text-white border border-slate-700 text-slate-200 text-sm font-semibold rounded-xl transition"
+                className="touch-target h-7 bg-slate-800 hover:bg-blue-600 hover:text-white border border-slate-700 text-slate-300 text-[10px] font-bold rounded-md transition"
               >
                 +{inc}
               </button>
             ))}
           </div>
-
-          {/* Collapsible Numeric Keypad */}
-          {isNumericKeypadOpen && (
-            <div className="mt-3 bg-slate-900 border border-slate-700 rounded-xl p-3 grid grid-cols-3 gap-2">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'DEL'].map((k) => (
-                <button
-                  key={k}
-                  onClick={() => handleKeypadPress(k)}
-                  className="touch-target h-12 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-lg transition"
-                >
-                  {k === 'DEL' ? <Delete size={20} className="mx-auto" /> : k}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Reps Stepper */}
-        <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Количество повторений
+        {/* Reps Column */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span>Повторения</span>
+            <span className="text-white font-extrabold text-xs">{reps} повт.</span>
           </div>
-          <div className="flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-700 rounded-xl p-3">
+
+          {/* Stepper */}
+          <div className="flex items-center justify-between gap-1 bg-slate-950 border border-slate-700 rounded-lg p-1">
             <button
               onClick={() => setReps((r) => Math.max(1, r - 1))}
-              className="touch-target w-12 h-12 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xl font-bold transition"
+              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm font-bold"
             >
               -1
             </button>
-            <div className="text-center">
-              <span className="text-3xl font-extrabold text-white tracking-tight">{reps}</span>
-              <span className="text-sm text-slate-400 ml-1">раз</span>
-            </div>
+            <span className="text-xl font-black text-white">{reps}</span>
             <button
               onClick={() => setReps((r) => r + 1)}
-              className="touch-target w-12 h-12 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xl font-bold transition"
+              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm font-bold"
             >
               +1
             </button>
           </div>
-        </div>
 
-        {/* Discrete RIR Slider (0 to 5) */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Интенсивность RIR (запас до отказа)
-            </span>
-            <span className="text-sm font-bold text-blue-400">
-              RIR: {rir} {rir === 0 ? '(Отказ)' : rir === 1 ? '(Предел)' : rir <= 3 ? '(Рабочий)' : '(Легко)'}
-            </span>
-          </div>
-
-          <div className="bg-slate-900/90 border border-slate-700 rounded-xl p-4 space-y-3">
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="1"
-              value={rir}
-              onChange={(e) => setRir(Number(e.target.value))}
-              className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-            <div className="flex justify-between text-xs text-slate-400 px-1 font-medium">
-              <span className={rir === 0 ? 'text-red-400 font-bold' : ''}>0 (Отказ)</span>
-              <span className={rir === 1 ? 'text-orange-400 font-bold' : ''}>1</span>
-              <span className={rir === 2 ? 'text-yellow-400 font-bold' : ''}>2</span>
-              <span className={rir === 3 ? 'text-green-400 font-bold' : ''}>3</span>
-              <span className={rir === 4 ? 'text-blue-400 font-bold' : ''}>4</span>
-              <span className={rir === 5 ? 'text-indigo-400 font-bold' : ''}>5+</span>
-            </div>
+          {/* Quick Rep Chips */}
+          <div className="grid grid-cols-4 gap-1">
+            {[6, 8, 10, 12].map((r) => (
+              <button
+                key={r}
+                onClick={() => setReps(r)}
+                className={`touch-target h-7 border text-[10px] font-bold rounded-md transition ${
+                  reps === r
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
           </div>
         </div>
-
-        {/* Confirm Save Set Button (<= 4 clicks budget, >= 48px touch target) */}
-        <button
-          onClick={handleSaveSet}
-          className="touch-target w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition active:scale-[0.99]"
-        >
-          <PlusCircle size={22} />
-          Зафиксировать подход #{currentExerciseSets.length + 1}
-        </button>
       </div>
 
-      {/* Completed Sets in current workout */}
+      {/* 4. Horizontal RIR Segment Selector (0..5+) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-sm">
+        <div className="flex items-center justify-between text-[11px] px-1 font-bold text-slate-400 uppercase">
+          <span>RIR (запас повторений)</span>
+          <span className="text-xs text-blue-400 font-extrabold">
+            {rir === 0 ? '0 (Отказ)' : rir === 1 ? '1 (Предел)' : rir === 2 ? '2 (Рабочий)' : rir === 3 ? '3 (Запас)' : rir === 4 ? '4 (Легко)' : '5+ (Разминка)'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-6 gap-1">
+          {rirOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setRir(opt.value)}
+              className={`touch-target h-9 rounded-lg border flex flex-col items-center justify-center transition ${
+                rir === opt.value
+                  ? `${opt.color} font-black ring-2 ring-blue-400 scale-[1.02]`
+                  : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className="text-xs font-black leading-none">{opt.label}</span>
+              <span className="text-[8px] font-medium leading-tight mt-0.5 opacity-80">{opt.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 5. Main Action Button (>=48px touch target) */}
+      <button
+        onClick={handleSaveSet}
+        className="touch-target w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition active:scale-[0.99]"
+      >
+        <PlusCircle size={18} />
+        <span>Зафиксировать подход #{currentExerciseSets.length + 1}</span>
+      </button>
+
+      {/* 6. Compact Horizontal Chips for Completed Sets */}
       {currentExerciseSets.length > 0 && (
-        <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Выполненные подходы ({selectedExercise?.name})
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-sm">
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+            Выполнено ({selectedExercise?.name})
           </div>
 
-          <div className="divide-y divide-slate-700">
+          <div className="flex flex-wrap gap-1.5">
             {currentExerciseSets.map((set) => (
-              <div key={set.id} className="py-2.5 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 bg-slate-700 text-slate-300 rounded-full flex items-center justify-center font-bold text-xs">
-                    #{set.setNumber}
-                  </span>
-                  <div>
-                    <span className="font-bold text-white">{set.weightKg} кг</span> ×{' '}
-                    <span className="font-bold text-white">{set.reps} повт.</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs px-2 py-0.5 bg-slate-700/80 text-blue-300 rounded-md font-medium">
-                    RIR {set.rir}
-                  </span>
-                  <button
-                    onClick={() => handleDeleteSet(set.id)}
-                    className="text-slate-400 hover:text-red-400 p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+              <div
+                key={set.id}
+                className="bg-slate-950 border border-slate-700/80 px-2.5 py-1 rounded-lg flex items-center gap-2 text-xs"
+              >
+                <span className="font-extrabold text-blue-400">#{set.setNumber}</span>
+                <span className="font-bold text-white">{set.weightKg} кг × {set.reps}</span>
+                <span className="text-[10px] text-slate-400">RIR {set.rir}</span>
+                <button
+                  onClick={() => handleDeleteSet(set.id)}
+                  className="text-slate-500 hover:text-red-400 p-0.5 ml-0.5"
+                >
+                  <Trash2 size={12} />
+                </button>
               </div>
             ))}
           </div>

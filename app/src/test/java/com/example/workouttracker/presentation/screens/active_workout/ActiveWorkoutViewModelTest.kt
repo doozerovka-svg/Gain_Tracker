@@ -138,8 +138,8 @@ class ActiveWorkoutViewModelTest {
         assertThat(state.inputRir).isEqualTo(1)
         assertThat(state.autoPopulatedValues).isNotNull()
         assertThat(state.progressionResult).isNotNull()
-        // Progression result for RIR 1 should recommend +5% (105.0 kg)
-        assertThat(state.progressionResult?.recommendedWeightKg).isEqualTo(105.0)
+        // Progression result for exact 8 reps at RIR 1 recommends +1 plate step (102.5 kg)
+        assertThat(state.progressionResult?.recommendedWeightKg).isEqualTo(102.5)
     }
 
     @Test

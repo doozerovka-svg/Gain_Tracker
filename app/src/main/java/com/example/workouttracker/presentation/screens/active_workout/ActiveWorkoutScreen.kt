@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,18 +26,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,7 +56,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -73,25 +77,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workouttracker.domain.model.Category
 import com.example.workouttracker.domain.model.Exercise
 import com.example.workouttracker.domain.model.SetEntry
-import com.example.workouttracker.presentation.components.DiscreteRirSlider
 import com.example.workouttracker.presentation.components.NumericWeightKeypad
 import com.example.workouttracker.presentation.components.PrimaryActionButton
-import com.example.workouttracker.presentation.components.QuickWeightIncrementButtons
-import com.example.workouttracker.presentation.components.RepsStepper
-import com.example.workouttracker.presentation.components.RestTimerOverlay
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
- * Main Active Workout Screen with Exercise List, Completed Sets Table,
- * Inline Set Entry with +X buttons, RIR Slider, Direct Keypad, and Rest Timer HUD.
+ * Ultra-Compact Zero-Scroll Active Workout Screen.
+ * Places Exercise Picker, Progression Target, Two-Column Weight & Reps inputs,
+ * Segmented RIR bar, and Action button entirely in the primary view without vertical scrolling.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,51 +111,7 @@ fun ActiveWorkoutScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Активная тренировка",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                },
-                actions = {
-                    if (uiState.sessionWithSets != null) {
-                        Button(
-                            onClick = { viewModel.completeWorkout() },
-                            modifier = Modifier
-                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Завершить", style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            // Floating Rest Timer Overlay
-            RestTimerOverlay(
-                timerState = uiState.timerState,
-                onAdd30s = { viewModel.addTimerSeconds(30) },
-                onSub30s = { viewModel.subTimerSeconds(30) },
-                onPauseResume = { viewModel.pauseResumeTimer() },
-                onSkip = { viewModel.skipTimer() }
-            )
-        }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -164,21 +120,17 @@ fun ActiveWorkoutScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
                 uiState.sessionWithSets == null -> {
-                    EmptyWorkoutState(
-                        onStartWorkout = { viewModel.startNewWorkout() }
-                    )
+                    EmptyWorkoutState(onStartWorkout = { viewModel.startNewWorkout() })
                 }
                 else -> {
-                    ActiveWorkoutContent(
+                    CompactWorkoutContent(
                         uiState = uiState,
+                        onCompleteWorkout = { viewModel.completeWorkout() },
                         onSelectExercise = { viewModel.selectExercise(it) },
                         onOpenAddExerciseDialog = { viewModel.openAddExerciseDialog(true) },
                         onIncrementWeight = { viewModel.incrementWeight(it) },
@@ -187,12 +139,13 @@ fun ActiveWorkoutScreen(
                         onSaveSet = { viewModel.saveSet() },
                         onDeleteSet = { viewModel.deleteSet(it) },
                         onToggleKeypad = { viewModel.toggleNumericKeypad(!uiState.isNumericKeypadOpen) },
-                        onUpdateRawWeight = { viewModel.updateRawWeightString(it) }
+                        onUpdateRawWeight = { viewModel.updateRawWeightString(it) },
+                        onPauseResumeTimer = { viewModel.pauseResumeTimer() },
+                        onSkipTimer = { viewModel.skipTimer() }
                     )
                 }
             }
 
-            // Exercise Selection Dialog
             if (uiState.isAddExerciseDialogOpen) {
                 ExerciseSelectionDialog(
                     exercises = uiState.exercises,
@@ -216,12 +169,12 @@ private fun EmptyWorkoutState(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
@@ -231,28 +184,25 @@ private fun EmptyWorkoutState(
                     .fillMaxWidth()
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.FitnessCenter,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(56.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-
                 Text(
                     text = "Нет активной тренировки",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     textAlign = TextAlign.Center
                 )
-
                 Text(
-                    text = "Нажмите «Начать тренировку», чтобы зафиксировать подходы, вес и повторения.",
+                    text = "Нажмите «Начать тренировку», чтобы приступить к выполнению подходов.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 PrimaryActionButton(
                     text = "Начать тренировку",
                     onClick = onStartWorkout,
@@ -264,8 +214,9 @@ private fun EmptyWorkoutState(
 }
 
 @Composable
-private fun ActiveWorkoutContent(
+private fun CompactWorkoutContent(
     uiState: ActiveWorkoutUiState,
+    onCompleteWorkout: () -> Unit,
     onSelectExercise: (Long) -> Unit,
     onOpenAddExerciseDialog: () -> Unit,
     onIncrementWeight: (Double) -> Unit,
@@ -275,492 +226,502 @@ private fun ActiveWorkoutContent(
     onDeleteSet: (Long) -> Unit,
     onToggleKeypad: () -> Unit,
     onUpdateRawWeight: (String) -> Unit,
+    onPauseResumeTimer: () -> Unit,
+    onSkipTimer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val activeExercise = uiState.activeExercise
     val setsForActiveExercise = activeExercise?.let { uiState.exerciseSetsMap[it.id] } ?: emptyList()
     val nextSetNumber = (setsForActiveExercise.maxOfOrNull { it.setNumber } ?: 0) + 1
+    val timerState = uiState.timerState
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Top Workout Info Banner
-        item {
-            WorkoutSessionSummaryCard(
-                date = uiState.sessionWithSets?.session?.date ?: System.currentTimeMillis(),
-                totalSets = uiState.totalSetsCount,
-                totalVolumeKg = uiState.totalVolumeKg
-            )
-        }
-
-        // Exercise Selector Strip
-        item {
-            ExerciseSelectorRow(
-                exercises = uiState.exercises,
-                selectedExerciseId = uiState.selectedExerciseId,
-                onSelectExercise = onSelectExercise,
-                onAddExerciseClick = onOpenAddExerciseDialog
-            )
-        }
-
-        if (activeExercise != null) {
-            // Active Exercise Header & Progression Hint
-            item {
-                ActiveExerciseHeaderCard(
-                    exercise = activeExercise,
-                    autoPopulated = uiState.autoPopulatedValues,
-                    progressionResult = uiState.progressionResult
-                )
-            }
-
-            // Completed Sets Table for this Exercise
-            if (setsForActiveExercise.isNotEmpty()) {
-                item {
-                    CompletedSetsTable(
-                        sets = setsForActiveExercise,
-                        onDeleteSet = onDeleteSet
-                    )
-                }
-            }
-
-            // Active Set Entry Card (<= 4 click fast logging)
-            item {
-                ActiveSetEntryCard(
-                    nextSetNumber = nextSetNumber,
-                    weightKg = uiState.inputWeightKg,
-                    rawWeightInput = uiState.rawWeightString,
-                    reps = uiState.inputReps,
-                    rir = uiState.inputRir,
-                    isKeypadOpen = uiState.isNumericKeypadOpen,
-                    onIncrementWeight = onIncrementWeight,
-                    onSetReps = onSetReps,
-                    onSetRir = onSetRir,
-                    onSaveSet = onSaveSet,
-                    onToggleKeypad = onToggleKeypad,
-                    onUpdateRawWeight = onUpdateRawWeight
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun WorkoutSessionSummaryCard(
-    date: Long,
-    totalSets: Int,
-    totalVolumeKg: Double,
-    modifier: Modifier = Modifier
-) {
-    val dateFormat = remember { SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale("ru")) }
-    val formattedDate = remember(date) { dateFormat.format(Date(date)) }
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = "Подходов: $totalSets • Тоннаж: ${String.format(Locale.US, "%.1f", totalVolumeKg)} кг",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Text(
-                    text = "В процессе",
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExerciseSelectorRow(
-    exercises: List<Exercise>,
-    selectedExerciseId: Long?,
-    onSelectExercise: (Long) -> Unit,
-    onAddExerciseClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Row(
+        // 1. Compact Header Bar (Stats + Timer + Complete)
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
         ) {
-            Text(
-                text = "Упражнение",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
-
-            TextButton(
-                onClick = onAddExerciseClick,
-                modifier = Modifier
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Выбрать / Сменить")
-            }
-        }
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(exercises) { exercise ->
-                val isSelected = exercise.id == selectedExerciseId
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onSelectExercise(exercise.id) },
-                    label = { Text(exercise.name) },
-                    modifier = Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveExerciseHeaderCard(
-    exercise: Exercise,
-    autoPopulated: com.example.workouttracker.domain.usecase.AutoPopulatedValues?,
-    progressionResult: com.example.workouttracker.domain.model.ProgressionResult?,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = exercise.name,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
-
-            if (autoPopulated != null) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = "Прошлый раз: ${String.format(Locale.US, "%.1f", autoPopulated.weightKg)} кг × ${autoPopulated.reps} (RIR ${autoPopulated.rir})",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                    }
-                }
-            }
-
-            if (progressionResult != null) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.TrendingUp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = progressionResult.explanationRu,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompletedSetsTable(
-    sets: List<SetEntry>,
-    onDeleteSet: (Long) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Выполненные подходы (${sets.size})",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-            )
-
-            // Table Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(6.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("№", modifier = Modifier.weight(0.8f), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                Text("Вес", modifier = Modifier.weight(1.5f), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                Text("Повт.", modifier = Modifier.weight(1.2f), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                Text("RIR", modifier = Modifier.weight(1.2f), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            // Table Rows
-            sets.forEach { set ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${set.setNumber}",
-                        modifier = Modifier.weight(0.8f),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "${String.format(Locale.US, "%.1f", set.weightKg)} кг",
-                        modifier = Modifier.weight(1.5f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "${set.reps}",
-                        modifier = Modifier.weight(1.2f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "${set.rir}",
-                        modifier = Modifier.weight(1.2f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    IconButton(
-                        onClick = { onDeleteSet(set.id) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Удалить подход",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                HorizontalDivider()
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveSetEntryCard(
-    nextSetNumber: Int,
-    weightKg: Double,
-    rawWeightInput: String,
-    reps: Int,
-    rir: Int,
-    isKeypadOpen: Boolean,
-    onIncrementWeight: (Double) -> Unit,
-    onSetReps: (Int) -> Unit,
-    onSetRir: (Int) -> Unit,
-    onSaveSet: () -> Unit,
-    onToggleKeypad: () -> Unit,
-    onUpdateRawWeight: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Header: Set Number
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Подход №$nextSetNumber",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                )
-
-                IconButton(
-                    onClick = onToggleKeypad,
-                    modifier = Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Keyboard,
-                        contentDescription = "Прямой цифровой ввод"
+                Column {
+                    Text(
+                        text = "Подходов: ${uiState.totalSetsCount} • ${String.format(Locale.US, "%.0f", uiState.totalVolumeKg)} кг",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
-            }
 
-            // Weight Control & Display
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (timerState.isRunning) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = String.format(
+                                        Locale.US,
+                                        "%02d:%02d",
+                                        timerState.remainingSeconds / 60,
+                                        timerState.remainingSeconds % 60
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black)
+                                )
+                                Icon(
+                                    imageVector = if (timerState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { onPauseResumeTimer() }
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { onSkipTimer() }
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = onCompleteWorkout,
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 48.dp, minHeight = 36.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Завершить", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    }
+                }
+            }
+        }
+
+        // 2. Exercise Selection Row & One-line Progression Hint
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Вес снаряда",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                        text = activeExercise?.name ?: "Выберите упражнение",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onOpenAddExerciseDialog() }
                     )
 
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.clickable { onToggleKeypad() }
+                    FilledTonalButton(
+                        onClick = onOpenAddExerciseDialog,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
                     ) {
-                        Text(
-                            text = "${String.format(Locale.US, "%.1f", weightKg)} кг",
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        )
+                        Text("Сменить", style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
-                // Quick Increment Buttons (+1, +2.5, +5, +10, +20 kg) strictly >=48dp touch targets
-                QuickWeightIncrementButtons(
-                    onIncrement = onIncrementWeight
-                )
+                uiState.progressionResult?.let { prog ->
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                text = prog.explanationRu,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
-                // Numeric Keypad Drawer (Collapsible)
-                AnimatedVisibility(
-                    visible = isKeypadOpen,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
+        // 3. Two-Column Input Grid (Weight on Left + Reps on Right)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Left Column: Weight
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    NumericWeightKeypad(
-                        currentInput = rawWeightInput,
-                        onInputChange = onUpdateRawWeight,
-                        onConfirm = onToggleKeypad
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Вес (кг)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        IconButton(
+                            onClick = onToggleKeypad,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Keyboard, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    // Stepper Display
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilledTonalButton(
+                            onClick = { onIncrementWeight(-2.5) },
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 36.dp, minHeight = 36.dp)
+                                .size(36.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("-2.5", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        }
+
+                        Text(
+                            text = String.format(Locale.US, "%.1f", uiState.inputWeightKg),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
+                        )
+
+                        FilledTonalButton(
+                            onClick = { onIncrementWeight(2.5) },
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 36.dp, minHeight = 36.dp)
+                                .size(36.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("+2.5", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+
+                    // Quick Plate Chips (+1, +2.5, +5, +10 kg)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(1.0, 2.5, 5.0, 10.0).forEach { inc ->
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .clickable { onIncrementWeight(inc) }
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
+                                    Text(
+                                        text = "+${if (inc == inc.toLong().toDouble()) inc.toLong() else inc}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            HorizontalDivider()
-
-            // Reps Control
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Right Column: Reps
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
-                Text(
-                    text = "Повторения",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
+                Column(
+                    modifier = Modifier.padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Повторения", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    }
 
-                RepsStepper(
-                    reps = reps,
-                    onRepsChange = onSetReps
-                )
+                    // Reps Stepper
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilledTonalButton(
+                            onClick = { onSetReps(Math.max(1, uiState.inputReps - 1)) },
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 36.dp, minHeight = 36.dp)
+                                .size(36.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("-1", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+
+                        Text(
+                            text = "${uiState.inputReps}",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
+                        )
+
+                        FilledTonalButton(
+                            onClick = { onSetReps(uiState.inputReps + 1) },
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 36.dp, minHeight = 36.dp)
+                                .size(36.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text("+1", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+
+                    // Quick Rep Chips (6, 8, 10, 12)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(6, 8, 10, 12).forEach { r ->
+                            val isSelected = uiState.inputReps == r
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 28.dp)
+                                    .clickable { onSetReps(r) }
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
+                                    Text(
+                                        text = "$r",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
 
-            HorizontalDivider()
-
-            // Discrete RIR Slider (0 to 5)
-            DiscreteRirSlider(
-                rirValue = rir,
-                onRirChange = onSetRir
+        // Numeric Keypad Drawer (Collapsible)
+        AnimatedVisibility(
+            visible = uiState.isNumericKeypadOpen,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            NumericWeightKeypad(
+                currentInput = uiState.rawWeightString,
+                onInputChange = onUpdateRawWeight,
+                onConfirm = onToggleKeypad
             )
+        }
 
-            // Save Set Button (<=4 click budget fulfillment)
-            PrimaryActionButton(
-                text = "Сохранить подход",
-                onClick = onSaveSet,
-                icon = Icons.Default.Check
+        // 4. Horizontal Segmented RIR Selector (0..5+)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("RIR (запас сил)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        text = when (uiState.inputRir) {
+                            0 -> "0: Отказ"
+                            1 -> "1: Предел"
+                            2 -> "2: Рабочий"
+                            3 -> "3: Запас"
+                            4 -> "4: Легко"
+                            else -> "5+: Разминка"
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val rirLabels = listOf("0", "1", "2", "3", "4", "5+")
+                    rirLabels.forEachIndexed { index, label ->
+                        val isSelected = uiState.inputRir == index
+                        val btnColor = when (index) {
+                            0 -> Color(0xFFEF4444)
+                            1 -> Color(0xFFF97316)
+                            2 -> Color(0xFFEAB308)
+                            3 -> Color(0xFF10B981)
+                            4 -> Color(0xFF3B82F6)
+                            else -> Color(0xFF6366F1)
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) btnColor.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, btnColor) else null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 36.dp)
+                                .clickable { onSetRir(index) }
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 6.dp)) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                                        color = if (isSelected) btnColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Main Action Button (>=48dp touch target)
+        Button(
+            onClick = onSaveSet,
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp)
+                .sizeIn(minHeight = 48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Зафиксировать подход #$nextSetNumber",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
+        }
+
+        // 6. Horizontal Chips of Completed Sets for this Exercise
+        if (setsForActiveExercise.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Выполненные подходы (${setsForActiveExercise.size})",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(setsForActiveExercise) { set ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.defaultMinSize(minHeight = 32.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "#${set.setNumber}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                                Text(
+                                    text = "${String.format(Locale.US, "%.1f", set.weightKg)} кг × ${set.reps}",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Text(
+                                    text = "RIR ${set.rir}",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Удалить",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { onDeleteSet(set.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -799,20 +760,16 @@ private fun ExerciseSelectionDialog(
                     .heightIn(max = 450.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Search field
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Поиск упражнения...") },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = null)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                // Category Chips
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -821,58 +778,59 @@ private fun ExerciseSelectionDialog(
                         FilterChip(
                             selected = selectedCategoryId == null,
                             onClick = { selectedCategoryId = null },
-                            label = { Text("Все") },
-                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            label = { Text("Все") }
                         )
                     }
-                    items(categories) { cat ->
+                    items(categories) { category ->
                         FilterChip(
-                            selected = selectedCategoryId == cat.id,
-                            onClick = { selectedCategoryId = if (selectedCategoryId == cat.id) null else cat.id },
-                            label = { Text(cat.name) },
-                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            selected = selectedCategoryId == category.id,
+                            onClick = { selectedCategoryId = category.id },
+                            label = { Text(category.name) }
                         )
                     }
                 }
 
-                // Exercise List
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(filteredExercises) { ex ->
+                    items(filteredExercises) { exercise ->
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .defaultMinSize(minHeight = 48.dp)
-                                .clickable { onExerciseSelected(ex.id) },
+                                .clickable { onExerciseSelected(exercise.id) },
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
+                            color = MaterialTheme.colorScheme.surfaceContainer
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = ex.name,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                                    text = exercise.name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                 )
+                                if (exercise.isBodyweight) {
+                                    Text(
+                                        text = "Свой вес",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-            ) {
-                Text("Закрыть")
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
             }
         }
     )

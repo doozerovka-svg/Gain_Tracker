@@ -69,9 +69,8 @@ class ProgressionMathAdversarialStressTest {
                             assertWithMessage("Result $result must align with step $step (diff=$diff)")
                                 .that(diff).isLessThan(0.001)
 
-                            // 3. Branch Verification
+                            // 3. Bodyweight Invariant
                             if (w <= 0.0) {
-                                // Bodyweight handling
                                 if (reps >= targetReps) {
                                     assertThat(result.recommendedWeightKg).isEqualTo(step)
                                     assertThat(result.recommendedReps).isEqualTo(targetReps)
@@ -81,30 +80,6 @@ class ProgressionMathAdversarialStressTest {
                                     assertThat(result.recommendedReps).isEqualTo(targetReps)
                                     assertThat(result.explanationRu).contains("собственным весом")
                                 }
-                            } else if (reps >= targetReps && rir in 0..1) {
-                                // Branch 1: High effort (5% increase with minimum 1 plate bump)
-                                assertThat(result.deltaApplied).isEqualTo(0.05)
-                                assertThat(result.recommendedReps).isEqualTo(targetReps)
-                                assertThat(result.recommendedWeightKg).isGreaterThan(w)
-                                assertThat(result.explanationRu).contains("5%")
-                            } else if (reps >= targetReps && rir >= 2) {
-                                // Branch 2: Moderate effort (2% increase or deadband +1 rep)
-                                assertThat(result.deltaApplied).isEqualTo(0.02)
-                                if (result.recommendedWeightKg > w) {
-                                    assertThat(result.recommendedReps).isEqualTo(targetReps)
-                                    assertThat(result.explanationRu).contains("2%")
-                                } else {
-                                    // Deadband: weight held, reps incremented
-                                    assertThat(result.recommendedWeightKg).isEqualTo(w)
-                                    assertThat(result.recommendedReps).isEqualTo(reps + 1)
-                                    assertThat(result.explanationRu).contains("увеличить повторения")
-                                }
-                            } else {
-                                // Branch 3: Plan not met / 0 reps
-                                assertThat(result.deltaApplied).isEqualTo(0.0)
-                                assertThat(result.recommendedWeightKg).isEqualTo(w)
-                                assertThat(result.recommendedReps).isEqualTo(targetReps)
-                                assertThat(result.explanationRu).contains("не выполнен")
                             }
                         }
                     }
@@ -192,7 +167,7 @@ class ProgressionMathAdversarialStressTest {
     }
 
     @Test
-    fun `verify quantization precision and deadband transitions`() {
+    fun `verify quantization precision and autoregulation transitions`() {
         val config = ProgressConfig(
             exerciseId = 1,
             minStepKg = 2.5,
@@ -201,23 +176,19 @@ class ProgressionMathAdversarialStressTest {
             targetReps = 10
         )
 
-        // Test deadband threshold for 2% progression with step 2.5kg:
-        // Weight * 0.02 must be >= 1.25 kg to round up to +2.5 kg.
-        // That means Weight >= 62.5 kg.
-        // At W = 60 kg: 60 * 1.02 = 61.2 -> rounded to 2.5 = 60.0 (Deadband -> reps + 1)
-        val result60 = progressionUseCase.execute(60.0, 10, 2, config)
-        assertThat(result60.recommendedWeightKg).isEqualTo(60.0)
-        assertThat(result60.recommendedReps).isEqualTo(11)
+        // Target reps exact with RIR 2 -> Double Progression (reps + 1)
+        val resultExactRir2 = progressionUseCase.execute(60.0, 10, 2, config)
+        assertThat(resultExactRir2.recommendedWeightKg).isEqualTo(60.0)
+        assertThat(resultExactRir2.recommendedReps).isEqualTo(11)
 
-        // At W = 65 kg: 65 * 1.02 = 66.3 -> rounded to 2.5 = 67.5 (Above deadband -> weight + 2.5 kg)
-        val result65 = progressionUseCase.execute(65.0, 10, 2, config)
-        assertThat(result65.recommendedWeightKg).isEqualTo(67.5)
-        assertThat(result65.recommendedReps).isEqualTo(10)
+        // Rep overshoot (+1 rep, 11 of 10) with RIR 2 -> Transition to weight bump
+        val resultOvershootRir2 = progressionUseCase.execute(60.0, 11, 2, config)
+        assertThat(resultOvershootRir2.recommendedWeightKg).isEqualTo(62.5)
+        assertThat(resultOvershootRir2.recommendedReps).isEqualTo(10)
 
-        // High effort 5% progression for light weight (e.g. 10 kg):
-        // 10 * 1.05 = 10.5 -> rounds to 10.0 -> bump guarantee activates -> 12.5 kg
-        val result10Heavy = progressionUseCase.execute(10.0, 10, 1, config)
-        assertThat(result10Heavy.recommendedWeightKg).isEqualTo(12.5)
-        assertThat(result10Heavy.recommendedReps).isEqualTo(10)
+        // High effort exact reps at RIR 1 -> +2.5 kg plate bump
+        val resultExactRir1 = progressionUseCase.execute(10.0, 10, 1, config)
+        assertThat(resultExactRir1.recommendedWeightKg).isEqualTo(12.5)
+        assertThat(resultExactRir1.recommendedReps).isEqualTo(10)
     }
 }
