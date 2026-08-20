@@ -41,7 +41,7 @@ jobs:
           printf "33b6a2b64920400829152f90011b83e0b1626be0\n" > "$ANDROID_SDK_ROOT/licenses/google-gdk-license"
           if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" ]; then
             yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-            yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" || true
+            yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" || true
           fi
 
       - name: Setup Gradle
