@@ -35,13 +35,13 @@ export const App: React.FC = () => {
           </div>
 
           <a
-            href="./workout-tracker.apk"
+            href="./workout-tracker.apk?v=1.1"
             download="workout-tracker.apk"
             className="touch-target px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
-            title="Скачать APK для Android"
+            title="Скачать APK для Android v1.1"
           >
             <Smartphone size={15} />
-            <span>APK</span>
+            <span>APK v1.1</span>
           </a>
         </div>
       </header>
