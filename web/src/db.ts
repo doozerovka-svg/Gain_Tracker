@@ -107,6 +107,29 @@ export class AppDatabase {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.EXERCISES) || '[]');
   }
 
+  static insertExercise(exercise: Omit<Exercise, 'id'>, config?: Partial<ProgressConfig>): Exercise {
+    const exercises = this.getExercises();
+    const newId = exercises.length > 0 ? Math.max(...exercises.map((e) => e.id)) + 1 : 1;
+    const newExercise: Exercise = {
+      ...exercise,
+      id: newId,
+    };
+    exercises.push(newExercise);
+    localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(exercises));
+
+    const configs = this.getConfigs();
+    configs[newId] = {
+      exerciseId: newId,
+      minStepKg: exercise.isBodyweight ? 1.25 : (config?.minStepKg || 2.5),
+      progressionPercentHeavy: config?.progressionPercentHeavy || 0.05,
+      progressionPercentModerate: config?.progressionPercentModerate || 0.02,
+      targetReps: config?.targetReps || 8,
+    };
+    localStorage.setItem(STORAGE_KEYS.CONFIGS, JSON.stringify(configs));
+
+    return newExercise;
+  }
+
   static getConfigs(): Record<number, ProgressConfig> {
     this.init();
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIGS) || '{}');

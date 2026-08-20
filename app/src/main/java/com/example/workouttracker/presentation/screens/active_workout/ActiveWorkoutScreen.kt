@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,35 +25,34 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -63,17 +61,17 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,15 +81,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.workouttracker.domain.model.Category
 import com.example.workouttracker.domain.model.Exercise
-import com.example.workouttracker.domain.model.SetEntry
 import com.example.workouttracker.presentation.components.NumericWeightKeypad
 import com.example.workouttracker.presentation.components.PrimaryActionButton
 import java.util.Locale
 
 /**
- * Ultra-Compact Zero-Scroll Active Workout Screen.
- * Places Exercise Picker, Progression Target, Two-Column Weight & Reps inputs,
- * Segmented RIR bar, and Action button entirely in the primary view without vertical scrolling.
+ * Ultra-Compact Zero-Scroll Active Workout Screen with Custom Exercise Creation
+ * and Muscle Group Filtering/Sorting.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +127,6 @@ fun ActiveWorkoutScreen(
                     CompactWorkoutContent(
                         uiState = uiState,
                         onCompleteWorkout = { viewModel.completeWorkout() },
-                        onSelectExercise = { viewModel.selectExercise(it) },
                         onOpenAddExerciseDialog = { viewModel.openAddExerciseDialog(true) },
                         onIncrementWeight = { viewModel.incrementWeight(it) },
                         onSetReps = { viewModel.setReps(it) },
@@ -146,14 +141,29 @@ fun ActiveWorkoutScreen(
                 }
             }
 
+            // Exercise Selection Dialog
             if (uiState.isAddExerciseDialogOpen) {
                 ExerciseSelectionDialog(
-                    exercises = uiState.exercises,
-                    categories = uiState.categories,
+                    uiState = uiState,
                     onDismiss = { viewModel.openAddExerciseDialog(false) },
                     onExerciseSelected = { exerciseId ->
                         viewModel.selectExercise(exerciseId)
                         viewModel.openAddExerciseDialog(false)
+                    },
+                    onSearchQueryChange = { viewModel.setExerciseSearchQuery(it) },
+                    onSelectMuscleCategory = { viewModel.setMuscleCategoryFilter(it) },
+                    onSelectSortOrder = { viewModel.setExerciseSortOrder(it) },
+                    onOpenCreateDialog = { viewModel.openCreateExerciseDialog(true) }
+                )
+            }
+
+            // Create Custom Exercise Dialog
+            if (uiState.isCreateExerciseDialogOpen) {
+                CreateExerciseDialog(
+                    categories = uiState.categories,
+                    onDismiss = { viewModel.openCreateExerciseDialog(false) },
+                    onCreateExercise = { name, catId, isBw, restSec, minStep, targetReps ->
+                        viewModel.createCustomExercise(name, catId, isBw, restSec, minStep, targetReps)
                     }
                 )
             }
@@ -175,9 +185,7 @@ private fun EmptyWorkoutState(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
         ) {
             Column(
                 modifier = Modifier
@@ -217,7 +225,6 @@ private fun EmptyWorkoutState(
 private fun CompactWorkoutContent(
     uiState: ActiveWorkoutUiState,
     onCompleteWorkout: () -> Unit,
-    onSelectExercise: (Long) -> Unit,
     onOpenAddExerciseDialog: () -> Unit,
     onIncrementWeight: (Double) -> Unit,
     onSetReps: (Int) -> Unit,
@@ -326,7 +333,7 @@ private fun CompactWorkoutContent(
             }
         }
 
-        // 2. Exercise Selection Row & One-line Progression Hint
+        // 2. Exercise Selection Row & Progression Hint
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -357,7 +364,7 @@ private fun CompactWorkoutContent(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
                     ) {
-                        Text("Сменить", style = MaterialTheme.typography.labelSmall)
+                        Text("Выбрать / +", style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
@@ -726,43 +733,57 @@ private fun CompactWorkoutContent(
     }
 }
 
+/**
+ * Exercise Selection Dialog with Search, Muscle Category Filter, Sorting, and "+ Создать упражнение" button.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExerciseSelectionDialog(
-    exercises: List<Exercise>,
-    categories: List<Category>,
+    uiState: ActiveWorkoutUiState,
     onDismiss: () -> Unit,
-    onExerciseSelected: (Long) -> Unit
+    onExerciseSelected: (Long) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectMuscleCategory: (Long?) -> Unit,
+    onSelectSortOrder: (ExerciseSortOrder) -> Unit,
+    onOpenCreateDialog: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
-
-    val filteredExercises = remember(exercises, searchQuery, selectedCategoryId) {
-        exercises.filter { ex ->
-            val matchesCategory = selectedCategoryId == null || ex.categoryId == selectedCategoryId
-            val matchesSearch = searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true)
-            matchesCategory && matchesSearch
-        }
-    }
+    val exercises = uiState.filteredAndSortedExercises
+    val categories = uiState.categories
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Выберите упражнение",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Выбор упражнения",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+                FilledTonalButton(
+                    onClick = onOpenCreateDialog,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Создать", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 450.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .heightIn(max = 480.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Search Input
                 OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = uiState.exerciseSearchQuery,
+                    onValueChange = onSearchQueryChange,
                     placeholder = { Text("Поиск упражнения...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
@@ -770,35 +791,86 @@ private fun ExerciseSelectionDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
+                // Muscle Group Categories Filter Strip
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     item {
                         FilterChip(
-                            selected = selectedCategoryId == null,
-                            onClick = { selectedCategoryId = null },
-                            label = { Text("Все") }
+                            selected = uiState.selectedMuscleCategoryId == null,
+                            onClick = { onSelectMuscleCategory(null) },
+                            label = { Text("Все группы") }
                         )
                     }
                     items(categories) { category ->
                         FilterChip(
-                            selected = selectedCategoryId == category.id,
-                            onClick = { selectedCategoryId = category.id },
+                            selected = uiState.selectedMuscleCategoryId == category.id,
+                            onClick = { onSelectMuscleCategory(category.id) },
                             label = { Text(category.name) }
                         )
                     }
                 }
 
-                LazyColumn(
+                // Sorting Order Selector
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Sort, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ExerciseSortOrder.values().forEach { order ->
+                        val isSelected = uiState.exerciseSortOrder == order
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onSelectSortOrder(order) }
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 4.dp)) {
+                                Text(
+                                    text = order.titleRu,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Exercise List
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(filteredExercises) { exercise ->
+                    if (exercises.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Ничего не найдено",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    items(exercises) { exercise ->
+                        val categoryName = categories.firstOrNull { it.id == exercise.categoryId }?.name ?: "Другое"
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .defaultMinSize(minHeight = 48.dp)
+                                .defaultMinSize(minHeight = 44.dp)
                                 .clickable { onExerciseSelected(exercise.id) },
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceContainer
@@ -806,20 +878,34 @@ private fun ExerciseSelectionDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = exercise.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                )
-                                if (exercise.isBodyweight) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Свой вес",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                        text = exercise.name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                                     )
+                                    Text(
+                                        text = categoryName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                if (exercise.isBodyweight) {
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                    ) {
+                                        Text(
+                                            text = "Свой вес",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -828,6 +914,164 @@ private fun ExerciseSelectionDialog(
             }
         },
         confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Закрыть")
+            }
+        }
+    )
+}
+
+/**
+ * Modal dialog for creating a brand new custom exercise with muscle group assignment.
+ */
+@Composable
+private fun CreateExerciseDialog(
+    categories: List<Category>,
+    onDismiss: () -> Unit,
+    onCreateExercise: (name: String, categoryId: Long, isBodyweight: Boolean, restSec: Int, minStepKg: Double, targetReps: Int) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedCategoryId by remember { mutableLongStateOf(categories.firstOrNull()?.id ?: 1L) }
+    var isBodyweight by remember { mutableStateOf(false) }
+    var restSeconds by remember { mutableIntStateOf(90) }
+    var minStepKg by remember { mutableDoubleStateOf(2.5) }
+    var targetReps by remember { mutableIntStateOf(8) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Новое упражнение",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Name Field
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название упражнения") },
+                    placeholder = { Text("Например: Жим гантелей под углом") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                // Muscle Group Picker
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Группа мышц",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(categories) { cat ->
+                            FilterChip(
+                                selected = selectedCategoryId == cat.id,
+                                onClick = { selectedCategoryId = cat.id },
+                                label = { Text(cat.name) }
+                            )
+                        }
+                    }
+                }
+
+                // Bodyweight Checkbox
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isBodyweight = !isBodyweight },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = isBodyweight,
+                        onCheckedChange = { isBodyweight = it }
+                    )
+                    Text("Упражнение с собственным весом (подтягивания, брусья и т.д.)", style = MaterialTheme.typography.bodySmall)
+                }
+
+                // Rest Time Stepper
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Отдых: $restSeconds сек", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(60, 90, 120, 180).forEach { s ->
+                            FilledTonalButton(
+                                onClick = { restSeconds = s },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("$s с", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+
+                // Min Step Kg
+                if (!isBodyweight) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Шаг веса: $minStepKg кг", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(1.25, 2.5, 5.0).forEach { step ->
+                                FilledTonalButton(
+                                    onClick = { minStepKg = step },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text("$step", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Target Reps
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Целевые повторы: $targetReps", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(6, 8, 10, 12, 15).forEach { r ->
+                            FilledTonalButton(
+                                onClick = { targetReps = r },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("$r", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onCreateExercise(name, selectedCategoryId, isBodyweight, restSeconds, minStepKg, targetReps)
+                    }
+                },
+                enabled = name.isNotBlank(),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Создать")
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Отмена")

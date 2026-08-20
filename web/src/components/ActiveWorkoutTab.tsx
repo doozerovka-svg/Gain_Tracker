@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppDatabase } from '../db';
-import type { Exercise, ProgressConfig, ProgressionResult, SetEntry, WorkoutSessionWithSets } from '../types';
+import type { Category, Exercise, ProgressConfig, ProgressionResult, SetEntry, WorkoutSessionWithSets } from '../types';
 import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
 import { 
   Play, CheckCircle2, PlusCircle, 
-  Sparkles, Pause, SkipForward, Trash2, Timer, Zap
+  Sparkles, Pause, SkipForward, Trash2, Timer, Zap,
+  Plus, Search, X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -13,11 +14,29 @@ interface Props {
   onRefresh: () => void;
 }
 
+type SortMode = 'BY_CATEGORY' | 'ALPHABETICAL' | 'RECENT';
+
 export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
-  const [exercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
+  const [categories] = useState<Category[]>(() => AppDatabase.getCategories());
+  const [exercises, setExercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
   const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => exercises[0]?.id || 1);
   const [activeSession, setActiveSession] = useState<WorkoutSessionWithSets | null>(() => AppDatabase.getActiveSession());
   
+  // Exercise filtering & sorting
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>('BY_CATEGORY');
+  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState<boolean>(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
+
+  // New exercise form
+  const [newExName, setNewExName] = useState<string>('');
+  const [newExCategoryId, setNewExCategoryId] = useState<number>(1);
+  const [newExIsBodyweight, setNewExIsBodyweight] = useState<boolean>(false);
+  const [newExRestSeconds, setNewExRestSeconds] = useState<number>(90);
+  const [newExStepKg, setNewExStepKg] = useState<number>(2.5);
+  const [newExTargetReps, setNewExTargetReps] = useState<number>(8);
+
   // Set inputs
   const [weightKg, setWeightKg] = useState<number>(80);
   const [reps, setReps] = useState<number>(8);
@@ -35,6 +54,26 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     () => exercises.find((e) => e.id === selectedExerciseId) || exercises[0],
     [exercises, selectedExerciseId]
   );
+
+  // Filtered & sorted exercises
+  const filteredExercises = useMemo(() => {
+    let list = [...exercises];
+    if (selectedCategoryId !== null) {
+      list = list.filter((e) => e.categoryId === selectedCategoryId);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((e) => e.name.toLowerCase().includes(q));
+    }
+    switch (sortMode) {
+      case 'ALPHABETICAL':
+        return list.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+      case 'BY_CATEGORY':
+        return list.sort((a, b) => a.categoryId - b.categoryId || a.name.localeCompare(b.name, 'ru'));
+      case 'RECENT':
+        return list; // preserves custom addition order
+    }
+  }, [exercises, selectedCategoryId, searchQuery, sortMode]);
 
   // Auto-populate weight & reps on exercise selection + calculate Progression recommendation
   const { autoPopulated, progressionResult } = useMemo(() => {
@@ -109,6 +148,33 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const handleIncrementWeight = (delta: number) => {
     const next = Math.max(0, Math.round((weightKg + delta) * 10) / 10);
     setWeightKg(next);
+  };
+
+  const handleCreateExercise = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newExName.trim()) return;
+
+    const created = AppDatabase.insertExercise(
+      {
+        name: newExName.trim(),
+        categoryId: newExCategoryId,
+        defaultRestTimeSeconds: newExRestSeconds,
+        defaultExerciseRestTimeSeconds: 180,
+        isBodyweight: newExIsBodyweight,
+      },
+      {
+        minStepKg: newExIsBodyweight ? 1.25 : newExStepKg,
+        targetReps: newExTargetReps,
+      }
+    );
+
+    const updatedList = AppDatabase.getExercises();
+    setExercises(updatedList);
+    setSelectedExerciseId(created.id);
+    setIsCreateDialogOpen(false);
+    setIsExercisePickerOpen(false);
+    setNewExName('');
+    showToast(`Упражнение «${created.name}» создано!`);
   };
 
   const handleSaveSet = () => {
@@ -243,17 +309,23 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
       {/* 2. Compact Exercise Selector & One-Line Progression Hint */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm">
         <div className="flex items-center gap-2">
-          <select
-            value={selectedExerciseId}
-            onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
-            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs font-semibold focus:outline-none focus:border-blue-500"
+          <button
+            onClick={() => setIsExercisePickerOpen(true)}
+            className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs font-semibold flex items-center justify-between text-left transition"
           >
-            {exercises.map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.name} {ex.isBodyweight ? '(Собственный вес)' : ''}
-              </option>
-            ))}
-          </select>
+            <span className="truncate">
+              {selectedExercise?.name} {selectedExercise?.isBodyweight ? '(Свой вес)' : ''}
+            </span>
+            <span className="text-[10px] text-blue-400 font-bold ml-1 shrink-0">Сменить</span>
+          </button>
+
+          <button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="touch-target h-8 px-2.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition"
+          >
+            <Plus size={13} />
+            <span>Новое</span>
+          </button>
 
           {progressionResult && (
             <div className="flex items-center gap-1 bg-indigo-950/80 border border-indigo-500/40 px-2 py-1.5 rounded-lg text-[11px] font-bold text-indigo-300 shrink-0">
@@ -357,7 +429,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
       {/* 4. Horizontal RIR Segment Selector (0..5+) */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-sm">
         <div className="flex items-center justify-between text-[11px] px-1 font-bold text-slate-400 uppercase">
-          <span>RIR (запас повторений)</span>
+          <span>RIR (запас сил)</span>
           <span className="text-xs text-blue-400 font-extrabold">
             {rir === 0 ? '0 (Отказ)' : rir === 1 ? '1 (Предел)' : rir === 2 ? '2 (Рабочий)' : rir === 3 ? '3 (Запас)' : rir === 4 ? '4 (Легко)' : '5+ (Разминка)'}
           </span>
@@ -415,6 +487,279 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: EXERCISE PICKER & MUSCLE SORT ================= */}
+      {isExercisePickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                Выбор упражнения
+              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsExercisePickerOpen(false);
+                    setIsCreateDialogOpen(true);
+                  }}
+                  className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                >
+                  <Plus size={13} />
+                  <span>Создать</span>
+                </button>
+                <button
+                  onClick={() => setIsExercisePickerOpen(false)}
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filters & Search */}
+            <div className="p-3 space-y-2 border-b border-slate-800 bg-slate-950/60">
+              {/* Search input */}
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Поиск упражнения..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Muscle Group Chips */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  onClick={() => setSelectedCategoryId(null)}
+                  className={`px-2 py-1 rounded-md text-[11px] font-semibold shrink-0 transition ${
+                    selectedCategoryId === null
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Все группы
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                    className={`px-2 py-1 rounded-md text-[11px] font-semibold shrink-0 transition ${
+                      selectedCategoryId === cat.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort Bar */}
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="text-slate-500">Сортировка:</span>
+                {(['BY_CATEGORY', 'ALPHABETICAL', 'RECENT'] as SortMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setSortMode(mode)}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      sortMode === mode ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {mode === 'BY_CATEGORY' ? 'По группам' : mode === 'ALPHABETICAL' ? 'А–Я' : 'Недавние'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {filteredExercises.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-500">
+                  Ничего не найдено
+                </div>
+              ) : (
+                filteredExercises.map((ex) => {
+                  const catName = categories.find((c) => c.id === ex.categoryId)?.name || 'Другое';
+                  const isSelected = ex.id === selectedExerciseId;
+                  return (
+                    <button
+                      key={ex.id}
+                      onClick={() => {
+                        setSelectedExerciseId(ex.id);
+                        setIsExercisePickerOpen(false);
+                      }}
+                      className={`w-full p-2 rounded-lg text-left flex items-center justify-between transition ${
+                        isSelected
+                          ? 'bg-blue-600/20 border border-blue-500/60 text-white'
+                          : 'bg-slate-950/40 hover:bg-slate-800 border border-slate-800/80 text-slate-300'
+                      }`}
+                    >
+                      <div>
+                        <div className="text-xs font-bold">{ex.name}</div>
+                        <div className="text-[10px] text-slate-400">{catName}</div>
+                      </div>
+                      {ex.isBodyweight && (
+                        <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+                          Свой вес
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: CREATE CUSTOM EXERCISE ================= */}
+      {isCreateDialogOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 animate-fade-in">
+          <form
+            onSubmit={handleCreateExercise}
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-4 space-y-3 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 className="text-sm font-bold text-white">Новое упражнение</h3>
+              <button
+                type="button"
+                onClick={() => setIsCreateDialogOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Название упражнения</label>
+              <input
+                type="text"
+                required
+                value={newExName}
+                onChange={(e) => setNewExName(e.target.value)}
+                placeholder="Например: Жим гантелей под углом"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Muscle Group */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Группа мышц</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setNewExCategoryId(cat.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      newExCategoryId === cat.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bodyweight Toggle */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="bwCheck"
+                checked={newExIsBodyweight}
+                onChange={(e) => setNewExIsBodyweight(e.target.checked)}
+                className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0"
+              />
+              <label htmlFor="bwCheck" className="text-xs text-slate-300 select-none">
+                Упражнение с собственным весом (подтягивания, брусья)
+              </label>
+            </div>
+
+            {/* Default Rest Time */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="text-slate-400">Отдых: {newExRestSeconds} сек</span>
+              <div className="flex gap-1">
+                {[60, 90, 120, 180].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setNewExRestSeconds(s)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      newExRestSeconds === s ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {s}с
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step Kg */}
+            {!newExIsBodyweight && (
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-slate-400">Шаг веса: {newExStepKg} кг</span>
+                <div className="flex gap-1">
+                  {[1.25, 2.5, 5.0].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setNewExStepKg(st)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        newExStepKg === st ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Target Reps */}
+            <div className="flex items-center justify-between text-xs pt-1">
+              <span className="text-slate-400">Целевые повторы: {newExTargetReps}</span>
+              <div className="flex gap-1">
+                {[6, 8, 10, 12].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setNewExTargetReps(r)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      newExTargetReps === r ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsCreateDialogOpen(false)}
+                className="flex-1 h-9 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="flex-1 h-9 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow"
+              >
+                Создать
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

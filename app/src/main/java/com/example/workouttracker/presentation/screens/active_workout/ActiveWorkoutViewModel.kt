@@ -13,6 +13,7 @@ import com.example.workouttracker.domain.repository.ExerciseRepository
 import com.example.workouttracker.domain.repository.WorkoutRepository
 import com.example.workouttracker.domain.usecase.AutoPopulatedValues
 import com.example.workouttracker.domain.usecase.CalculateProgressionUseCase
+import com.example.workouttracker.domain.usecase.CreateExerciseUseCase
 import com.example.workouttracker.domain.usecase.GetAutoPopulatedValuesUseCase
 import com.example.workouttracker.presentation.components.KeypadSanitizer
 import com.example.workouttracker.timer.RestTimerManager
@@ -30,6 +31,15 @@ import java.math.RoundingMode
 import java.util.Locale
 
 /**
+ * Exercise Sorting options
+ */
+enum class ExerciseSortOrder(val titleRu: String) {
+    BY_CATEGORY("По группам мышц"),
+    ALPHABETICAL("А–Я"),
+    RECENT("Недавние")
+}
+
+/**
  * UI State for the Active Workout Screen.
  */
 data class ActiveWorkoutUiState(
@@ -44,7 +54,11 @@ data class ActiveWorkoutUiState(
     val autoPopulatedValues: AutoPopulatedValues? = null,
     val progressionResult: ProgressionResult? = null,
     val isAddExerciseDialogOpen: Boolean = false,
+    val isCreateExerciseDialogOpen: Boolean = false,
     val isNumericKeypadOpen: Boolean = false,
+    val selectedMuscleCategoryId: Long? = null,
+    val exerciseSearchQuery: String = "",
+    val exerciseSortOrder: ExerciseSortOrder = ExerciseSortOrder.BY_CATEGORY,
     val isLoading: Boolean = false,
     val userMessage: String? = null,
     val timerState: RestTimerState = RestTimerState()
@@ -60,10 +74,26 @@ data class ActiveWorkoutUiState(
 
     val totalVolumeKg: Double
         get() = sessionWithSets?.sets?.sumOf { it.weightKg * it.reps } ?: 0.0
+
+    val filteredAndSortedExercises: List<Exercise>
+        get() {
+            var list = exercises
+            if (selectedMuscleCategoryId != null) {
+                list = list.filter { it.categoryId == selectedMuscleCategoryId }
+            }
+            if (exerciseSearchQuery.isNotBlank()) {
+                list = list.filter { it.name.contains(exerciseSearchQuery, ignoreCase = true) }
+            }
+            return when (exerciseSortOrder) {
+                ExerciseSortOrder.ALPHABETICAL -> list.sortedBy { it.name.lowercase(Locale.getDefault()) }
+                ExerciseSortOrder.BY_CATEGORY -> list.sortedWith(compareBy({ it.categoryId }, { it.name }))
+                ExerciseSortOrder.RECENT -> list
+            }
+        }
 }
 
 /**
- * ViewModel managing the active workout session, set entry state, fast logging click budget (<= 4 clicks),
+ * ViewModel managing the active workout session, exercise creation, set entry state, fast logging click budget,
  * auto-population from historical sets, progression recommendations, and reactive rest timer.
  */
 class ActiveWorkoutViewModel(
@@ -71,6 +101,7 @@ class ActiveWorkoutViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val calculateProgressionUseCase: CalculateProgressionUseCase = CalculateProgressionUseCase(),
     private val getAutoPopulatedValuesUseCase: GetAutoPopulatedValuesUseCase = GetAutoPopulatedValuesUseCase(workoutRepository),
+    private val createExerciseUseCase: CreateExerciseUseCase = CreateExerciseUseCase(exerciseRepository),
     val restTimerManager: RestTimerManager = RestTimerManager()
 ) : ViewModel() {
 
@@ -98,7 +129,6 @@ class ActiveWorkoutViewModel(
                     )
                 }
 
-                // If selected exercise changed or not initialized, trigger auto-population
                 _uiState.value.selectedExerciseId?.let { exerciseId ->
                     loadAutoPopulatedAndProgression(exerciseId)
                 }
@@ -119,9 +149,11 @@ class ActiveWorkoutViewModel(
                     current.copy(
                         exercises = exercises,
                         categories = categories,
-                        selectedExerciseId = selectedId
+                        selectedExerciseId = selectedId,
+                        isLoading = false
                     )
                 }
+
                 _uiState.value.selectedExerciseId?.let { exerciseId ->
                     loadAutoPopulatedAndProgression(exerciseId)
                 }
@@ -137,23 +169,68 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Start a new active workout session if none exists.
-     */
     fun startNewWorkout() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val newSessionId = workoutRepository.startNewSession()
-            _uiState.update { it.copy(isLoading = false) }
+            val sessionId = workoutRepository.startNewSession(
+                date = System.currentTimeMillis(),
+                notes = "Силовая тренировка"
+            )
+            _uiState.update { it.copy(userMessage = "Тренировка начата") }
         }
     }
 
-    /**
-     * Select active exercise to log sets for. Pre-fills weight, reps, RIR from history.
-     */
     fun selectExercise(exerciseId: Long) {
         _uiState.update { it.copy(selectedExerciseId = exerciseId) }
         loadAutoPopulatedAndProgression(exerciseId)
+    }
+
+    fun setMuscleCategoryFilter(categoryId: Long?) {
+        _uiState.update { it.copy(selectedMuscleCategoryId = categoryId) }
+    }
+
+    fun setExerciseSearchQuery(query: String) {
+        _uiState.update { it.copy(exerciseSearchQuery = query) }
+    }
+
+    fun setExerciseSortOrder(order: ExerciseSortOrder) {
+        _uiState.update { it.copy(exerciseSortOrder = order) }
+    }
+
+    fun openCreateExerciseDialog(isOpen: Boolean) {
+        _uiState.update { it.copy(isCreateExerciseDialogOpen = isOpen) }
+    }
+
+    fun createCustomExercise(
+        name: String,
+        categoryId: Long,
+        isBodyweight: Boolean,
+        defaultRestTimeSeconds: Int,
+        minStepKg: Double,
+        targetReps: Int
+    ) {
+        viewModelScope.launch {
+            val result = createExerciseUseCase.execute(
+                name = name,
+                categoryId = categoryId,
+                isBodyweight = isBodyweight,
+                defaultRestTimeSeconds = defaultRestTimeSeconds,
+                minStepKg = minStepKg,
+                targetReps = targetReps
+            )
+            result.onSuccess { newExerciseId ->
+                _uiState.update {
+                    it.copy(
+                        isCreateExerciseDialogOpen = false,
+                        isAddExerciseDialogOpen = false,
+                        selectedExerciseId = newExerciseId,
+                        userMessage = "Упражнение «$name» создано!"
+                    )
+                }
+                loadAutoPopulatedAndProgression(newExerciseId)
+            }.onFailure { error ->
+                _uiState.update { it.copy(userMessage = error.message ?: "Ошибка создания упражнения") }
+            }
+        }
     }
 
     private fun loadAutoPopulatedAndProgression(exerciseId: Long) {
@@ -200,9 +277,6 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Quick increment weight using +X buttons (+1, +2.5, +5, +10, +20 kg).
-     */
     fun incrementWeight(delta: Double) {
         _uiState.update { current ->
             val newWeight = BigDecimal.valueOf((current.inputWeightKg + delta).coerceIn(0.0, 999.9))
@@ -216,9 +290,6 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Set weight directly from numeric keypad or picker.
-     */
     fun setWeight(weight: Double) {
         val clamped = BigDecimal.valueOf(weight.coerceIn(0.0, 999.9))
             .setScale(2, RoundingMode.HALF_UP)
@@ -232,9 +303,6 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Update raw weight input from numeric keypad.
-     */
     fun updateRawWeightString(rawInput: String) {
         val parsed = KeypadSanitizer.parseWeight(rawInput)
         _uiState.update {
@@ -245,29 +313,22 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Set repetition count.
-     */
     fun setReps(reps: Int) {
         _uiState.update { it.copy(inputReps = reps.coerceIn(1, 999)) }
     }
 
-    /**
-     * Set discrete RIR (0 to 5).
-     */
     fun setRir(rir: Int) {
         _uiState.update { it.copy(inputRir = rir.coerceIn(0, 5)) }
     }
 
-    /**
-     * Save active set entry.
-     * Completes set logging in <= 4 clicks, persists to Room DB, and auto-starts Rest Timer.
-     */
     fun saveSet(customRestSeconds: Int? = null) {
         viewModelScope.launch {
             val currentState = _uiState.value
             val activeSession = currentState.sessionWithSets?.session
-            val sessionId = activeSession?.id ?: workoutRepository.startNewSession()
+            val sessionId = activeSession?.id ?: workoutRepository.startNewSession(
+                date = System.currentTimeMillis(),
+                notes = "Силовая тренировка"
+            )
 
             val exerciseId = currentState.selectedExerciseId
                 ?: currentState.exercises.firstOrNull()?.id
@@ -277,6 +338,7 @@ class ActiveWorkoutViewModel(
             val nextSetNumber = (existingSetsForExercise.maxOfOrNull { it.setNumber } ?: 0) + 1
 
             val newSet = SetEntry(
+                id = 0,
                 workoutSessionId = sessionId,
                 exerciseId = exerciseId,
                 setNumber = nextSetNumber,
@@ -292,8 +354,15 @@ class ActiveWorkoutViewModel(
             // Trigger Rest Timer
             restTimerManager.startSetRest(customRestSeconds)
 
-            _uiState.update {
-                it.copy(
+            _uiState.update { current ->
+                val currentSets = current.sessionWithSets?.sets ?: emptyList()
+                val updatedSession = current.sessionWithSets?.copy(sets = currentSets + newSet)
+                    ?: WorkoutSessionWithSets(
+                        session = com.example.workouttracker.domain.model.WorkoutSession(id = sessionId, date = System.currentTimeMillis()),
+                        sets = listOf(newSet)
+                    )
+                current.copy(
+                    sessionWithSets = updatedSession,
                     isNumericKeypadOpen = false,
                     timerState = restTimerManager.timerState.value,
                     userMessage = "Подход №$nextSetNumber сохранён"
@@ -302,18 +371,12 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Delete a set entry by ID.
-     */
     fun deleteSet(setId: Long) {
         viewModelScope.launch {
             workoutRepository.deleteSet(setId)
         }
     }
 
-    /**
-     * Complete active workout session.
-     */
     fun completeWorkout() {
         viewModelScope.launch {
             val sessionId = _uiState.value.sessionWithSets?.session?.id ?: return@launch
@@ -328,9 +391,6 @@ class ActiveWorkoutViewModel(
         }
     }
 
-    /**
-     * Cancel/Discard active workout session.
-     */
     fun cancelWorkout() {
         viewModelScope.launch {
             val sessionId = _uiState.value.sessionWithSets?.session?.id ?: return@launch
