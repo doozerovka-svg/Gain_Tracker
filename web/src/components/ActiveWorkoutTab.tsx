@@ -238,6 +238,31 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const totalVolume = activeSession?.sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0) || 0;
   const totalSets = activeSession?.sets.length || 0;
 
+  // Group all completed sets of the active workout by exercise
+  const groupedWorkoutSets = useMemo(() => {
+    if (!activeSession || !activeSession.sets) return [];
+    const map = new Map<number, typeof activeSession.sets>();
+    activeSession.sets.forEach((s) => {
+      const list = map.get(s.exerciseId) || [];
+      list.push(s);
+      map.set(s.exerciseId, list);
+    });
+    return Array.from(map.entries()).map(([exId, exSets]) => {
+      const ex = exercises.find((e) => e.id === exId);
+      const volume = exSets.reduce((sum, s) => sum + s.weightKg * s.reps, 0);
+      const maxWeight = Math.max(...exSets.map((s) => s.weightKg), 0);
+      return {
+        exerciseId: exId,
+        exerciseName: ex?.name || `Упражнение #${exId}`,
+        isBodyweight: ex?.isBodyweight || false,
+        sets: exSets,
+        volume,
+        maxWeight,
+        isActive: exId === selectedExerciseId,
+      };
+    });
+  }, [activeSession, exercises, selectedExerciseId]);
+
   const rirOptions = [
     { value: 0, label: '0', desc: 'Отказ', color: 'bg-red-500/20 text-red-300 border-red-500/40' },
     { value: 1, label: '1', desc: 'Предел', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
@@ -308,42 +333,46 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         </div>
       </div>
 
-      {/* 2. Compact Exercise Selector & One-Line Progression Hint */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsExercisePickerOpen(true)}
-            className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs font-semibold flex items-center justify-between text-left transition"
-          >
-            <span className="truncate">
-              {selectedExercise?.name} {selectedExercise?.isBodyweight ? '(Свой вес)' : ''}
-            </span>
-            <span className="text-[10px] text-blue-400 font-bold ml-1 shrink-0">Сменить</span>
-          </button>
+      {/* 2. Compact Exercise Selector */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2 shadow-sm">
+        <button
+          onClick={() => setIsExercisePickerOpen(true)}
+          className="flex-1 min-w-0 bg-slate-950 hover:bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white text-xs font-semibold flex items-center justify-between text-left transition"
+        >
+          <span className="truncate mr-1 font-bold">
+            {selectedExercise?.name} {selectedExercise?.isBodyweight ? '(Свой вес)' : ''}
+          </span>
+          <span className="text-[11px] text-blue-400 font-bold shrink-0">Сменить</span>
+        </button>
 
-          <button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="touch-target h-8 px-2.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition"
-          >
-            <Plus size={13} />
-            <span>Новое</span>
-          </button>
+        <button
+          onClick={() => setIsCreateDialogOpen(true)}
+          className="touch-target h-9 px-3 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition"
+        >
+          <Plus size={14} />
+          <span>Новое</span>
+        </button>
+      </div>
 
-          {progressionResult && (
-            <div className="flex items-center gap-1 bg-indigo-950/80 border border-indigo-500/40 px-2 py-1.5 rounded-lg text-[11px] font-bold text-indigo-300 shrink-0">
-              <Zap size={12} className="text-indigo-400" />
+      {/* Adaptive Progression Recommendation Card (No Truncation / Full Responsiveness) */}
+      {progressionResult && (
+        <div className="bg-gradient-to-br from-indigo-950/70 via-slate-900 to-blue-950/60 border border-indigo-500/40 rounded-xl p-3 space-y-2 shadow-md">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-indigo-400 font-bold text-xs">
+              <Sparkles size={14} className="text-indigo-400 shrink-0" />
+              <span>Рекомендация нагрузки (No-AI)</span>
+            </div>
+            <div className="bg-indigo-500/20 border border-indigo-400/40 px-2.5 py-1 rounded-lg text-xs font-black text-indigo-200 flex items-center gap-1.5 shadow-sm">
+              <Zap size={13} className="text-indigo-400" />
               <span>Цель: {progressionResult.recommendedWeightKg} кг × {progressionResult.recommendedReps}</span>
             </div>
-          )}
-        </div>
-
-        {progressionResult && (
-          <div className="text-[11px] text-indigo-200/90 leading-tight px-1 truncate" title={progressionResult.explanationRu}>
-            <Sparkles size={11} className="inline mr-1 text-indigo-400" />
-            {progressionResult.explanationRu}
           </div>
-        )}
-      </div>
+
+          <p className="text-xs sm:text-sm text-indigo-100/90 leading-relaxed break-words whitespace-normal">
+            {progressionResult.explanationRu}
+          </p>
+        </div>
+      )}
 
       {/* 3. Two-Column Input Grid (Weight on Left + Reps on Right) */}
       <div className="grid grid-cols-2 gap-2">
@@ -358,26 +387,26 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
           <div className="flex items-center justify-between gap-1 bg-slate-950 border border-slate-700 rounded-lg p-1">
             <button
               onClick={() => handleIncrementWeight(-2.5)}
-              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-bold"
+              className="touch-target w-9 h-9 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-md flex items-center justify-center transition"
             >
               -2.5
             </button>
-            <span className="text-xl font-black text-white">{weightKg}</span>
+            <span className="font-black text-base text-white tracking-tight">{weightKg}</span>
             <button
               onClick={() => handleIncrementWeight(2.5)}
-              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-bold"
+              className="touch-target w-9 h-9 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-md flex items-center justify-center transition"
             >
               +2.5
             </button>
           </div>
 
-          {/* Micro Chips */}
-          <div className="grid grid-cols-4 gap-1">
+          {/* Quick Increments */}
+          <div className="grid grid-cols-4 gap-1 pt-1">
             {[1, 2.5, 5, 10].map((inc) => (
               <button
                 key={inc}
                 onClick={() => handleIncrementWeight(inc)}
-                className="touch-target h-7 bg-slate-800 hover:bg-blue-600 hover:text-white border border-slate-700 text-slate-300 text-[10px] font-bold rounded-md transition"
+                className="touch-target h-7 bg-slate-800 hover:bg-blue-600 hover:text-white border border-slate-700/60 rounded-md text-[11px] font-bold text-slate-300 transition"
               >
                 +{inc}
               </button>
@@ -389,36 +418,36 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             <span>Повторения</span>
-            <span className="text-white font-extrabold text-xs">{reps} повт.</span>
+            <span className="text-white font-extrabold text-xs">{reps}</span>
           </div>
 
           {/* Stepper */}
           <div className="flex items-center justify-between gap-1 bg-slate-950 border border-slate-700 rounded-lg p-1">
             <button
-              onClick={() => setReps((r) => Math.max(1, r - 1))}
-              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm font-bold"
+              onClick={() => setReps(Math.max(1, reps - 1))}
+              className="touch-target w-9 h-9 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-md flex items-center justify-center transition"
             >
               -1
             </button>
-            <span className="text-xl font-black text-white">{reps}</span>
+            <span className="font-black text-base text-white tracking-tight">{reps}</span>
             <button
-              onClick={() => setReps((r) => r + 1)}
-              className="touch-target w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm font-bold"
+              onClick={() => setReps(reps + 1)}
+              className="touch-target w-9 h-9 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-md flex items-center justify-center transition"
             >
               +1
             </button>
           </div>
 
-          {/* Quick Rep Chips */}
-          <div className="grid grid-cols-4 gap-1">
+          {/* Quick Reps */}
+          <div className="grid grid-cols-4 gap-1 pt-1">
             {[6, 8, 10, 12].map((r) => (
               <button
                 key={r}
                 onClick={() => setReps(r)}
-                className={`touch-target h-7 border text-[10px] font-bold rounded-md transition ${
+                className={`touch-target h-7 rounded-md text-[11px] font-bold transition ${
                   reps === r
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/60'
                 }`}
               >
                 {r}
@@ -464,28 +493,82 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         <span>Зафиксировать подход #{currentExerciseSets.length + 1}</span>
       </button>
 
-      {/* 6. Compact Horizontal Chips for Completed Sets */}
-      {currentExerciseSets.length > 0 && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-sm">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-            Выполнено ({selectedExercise?.name})
+      {/* 6. Completed Sets Grouped by Exercise */}
+      {groupedWorkoutSets.length > 0 && (
+        <div className="space-y-2.5 pt-1">
+          <div className="flex items-center justify-between text-xs px-1">
+            <span className="font-bold text-slate-300 uppercase tracking-wider">
+              Упражнения в тренировке ({groupedWorkoutSets.length})
+            </span>
+            <span className="text-slate-400 font-medium">
+              Всего подходов: {totalSets}
+            </span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {currentExerciseSets.map((set) => (
+          <div className="space-y-2">
+            {groupedWorkoutSets.map((group) => (
               <div
-                key={set.id}
-                className="bg-slate-950 border border-slate-700/80 px-2.5 py-1 rounded-lg flex items-center gap-2 text-xs"
+                key={group.exerciseId}
+                className={`border rounded-xl p-3 space-y-2 transition shadow-sm ${
+                  group.isActive
+                    ? 'bg-slate-900/95 border-blue-500/60 ring-1 ring-blue-500/30'
+                    : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                }`}
               >
-                <span className="font-extrabold text-blue-400">#{set.setNumber}</span>
-                <span className="font-bold text-white">{set.weightKg} кг × {set.reps}</span>
-                <span className="text-[10px] text-slate-400">RIR {set.rir}</span>
-                <button
-                  onClick={() => handleDeleteSet(set.id)}
-                  className="text-slate-500 hover:text-red-400 p-0.5 ml-0.5"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {/* Exercise Header */}
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    className="flex items-center gap-2 cursor-pointer min-w-0"
+                    onClick={() => setSelectedExerciseId(group.exerciseId)}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${group.isActive ? 'bg-blue-400 ring-2 ring-blue-400/40' : 'bg-slate-600'}`} />
+                    <span className="font-bold text-white text-xs sm:text-sm truncate">
+                      {group.exerciseName}
+                    </span>
+                    {group.isActive && (
+                      <span className="px-1.5 py-0.5 bg-blue-600/30 text-blue-300 border border-blue-500/40 text-[10px] font-bold rounded-md shrink-0">
+                        Выбрано
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 shrink-0">
+                    <span>{group.sets.length} подх.</span>
+                    <span>•</span>
+                    <span className="text-slate-300 font-semibold">{group.volume.toFixed(0)} кг</span>
+                    {!group.isActive && (
+                      <button
+                        onClick={() => setSelectedExerciseId(group.exerciseId)}
+                        className="px-2 py-0.5 bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-400 border border-slate-700 rounded-md text-[10px] font-bold transition ml-1"
+                      >
+                        Выбрать
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sets Grid / Chips */}
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {group.sets.map((set) => (
+                    <div
+                      key={set.id}
+                      className="bg-slate-950 border border-slate-800/90 px-2.5 py-1 rounded-lg flex items-center gap-2 text-xs"
+                    >
+                      <span className="font-extrabold text-blue-400">#{set.setNumber}</span>
+                      <span className="font-bold text-white">{set.weightKg} кг × {set.reps}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-slate-900 border border-slate-700 text-slate-300 rounded font-medium">
+                        RIR {set.rir}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteSet(set.id)}
+                        className="text-slate-500 hover:text-red-400 p-0.5"
+                        title="Удалить подход"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

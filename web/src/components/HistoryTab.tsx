@@ -111,30 +111,57 @@ export const HistoryTab: React.FC<Props> = ({ onRefresh }) => {
 
               {/* Expanded Set Details */}
               {isExpanded && (
-                <div className="pt-3 border-t border-slate-700 space-y-3">
-                  {Array.from(setsByExercise.entries()).map(([exId, sets]) => (
-                    <div key={exId} className="space-y-1.5">
-                      <div className="text-xs font-semibold text-blue-400">
-                        {exerciseMap.get(exId) || 'Упражнение'}
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                        {sets.map((set) => (
-                          <div
-                            key={set.id}
-                            className="text-xs bg-slate-900/80 px-3 py-2 rounded-xl flex items-center justify-between text-slate-300"
-                          >
-                            <span className="font-medium text-slate-400">Подход #{set.setNumber}</span>
-                            <span className="font-bold text-white">
-                              {set.weightKg} кг × {set.reps}
-                            </span>
-                            <span className="text-[11px] px-1.5 py-0.5 bg-slate-800 text-blue-300 rounded font-medium">
-                              RIR {set.rir}
-                            </span>
+                <div className="pt-3 border-t border-slate-700/80 space-y-3">
+                  {Array.from(setsByExercise.entries()).map(([exId, sets]) => {
+                    const exName = exerciseMap.get(exId) || `Упражнение #${exId}`;
+                    const exVolume = sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0);
+                    const exMaxWeight = Math.max(...sets.map((s) => s.weightKg), 0);
+
+                    return (
+                      <div key={exId} className="bg-slate-900/90 border border-slate-700/60 rounded-xl p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-slate-800 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-400" />
+                            <span className="text-xs sm:text-sm font-bold text-white">{exName}</span>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                            <span>{sets.length} подх.</span>
+                            <span>•</span>
+                            <span>Макс: <b className="text-white">{exMaxWeight} кг</b></span>
+                            <span>•</span>
+                            <span>Объём: <b className="text-blue-300">{exVolume.toFixed(0)} кг</b></span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {sets.map((set) => {
+                            const epley1RM = Math.round(set.weightKg * (1 + set.reps / 30));
+                            return (
+                              <div
+                                key={set.id}
+                                className="text-xs bg-slate-950 border border-slate-800/90 px-3 py-2 rounded-lg flex items-center justify-between text-slate-300 shadow-sm"
+                              >
+                                <span className="font-bold text-blue-400">#{set.setNumber}</span>
+                                <span className="font-black text-white">
+                                  {set.weightKg} кг × {set.reps}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded font-bold">
+                                    RIR {set.rir}
+                                  </span>
+                                  {set.weightKg > 0 && (
+                                    <span className="text-[10px] text-slate-500 font-mono" title="Расчетный 1RM по формуле Эпли">
+                                      1RM ~{epley1RM}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

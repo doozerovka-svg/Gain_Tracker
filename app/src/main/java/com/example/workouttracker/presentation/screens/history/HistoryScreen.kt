@@ -33,10 +33,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.workouttracker.domain.model.SetEntry
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -138,23 +140,53 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
                                         enter = expandVertically(),
                                         exit = shrinkVertically()
                                     ) {
-                                        Column(modifier = Modifier.padding(top = 8.dp)) {
+                                        Column(
+                                            modifier = Modifier.padding(top = 8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
                                             HorizontalDivider()
-                                            Spacer(modifier = Modifier.height(8.dp))
 
                                             val setsByExercise = sets.groupBy { it.exerciseId }
                                             setsByExercise.forEach { (exerciseId, exerciseSets) ->
                                                 val exerciseName = state.exercises[exerciseId]?.name ?: "Упражнение #$exerciseId"
-                                                Text(
-                                                    text = exerciseName,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.padding(vertical = 4.dp)
-                                                )
-                                                exerciseSets.sortedBy { it.setNumber }.forEach { set ->
-                                                    SetRow(set)
+                                                val exVolume = exerciseSets.sumOf { it.weightKg * it.reps }
+                                                val exMaxWeight = exerciseSets.maxOfOrNull { it.weightKg } ?: 0.0
+
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                                    )
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(10.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = exerciseName,
+                                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                                color = MaterialTheme.colorScheme.primary
+                                                            )
+                                                            Text(
+                                                                text = "${exerciseSets.size} подх. • Макс: ${"%.1f".format(exMaxWeight)} кг • ${"%.0f".format(exVolume)} кг",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+
+                                                        exerciseSets.sortedBy { it.setNumber }.forEach { set ->
+                                                            SetRow(set)
+                                                        }
+                                                    }
                                                 }
-                                                Spacer(modifier = Modifier.height(4.dp))
                                             }
                                         }
                                     }
@@ -188,26 +220,53 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
 
 @Composable
 private fun SetRow(set: SetEntry) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+    val epley1RM = Math.round(set.weightKg * (1 + set.reps / 30.0))
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = "Подход ${set.setNumber}",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "${"%.1f".format(set.weightKg)} кг × ${set.reps}",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "RIR ${set.rir}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Подход #${set.setNumber}",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "${"%.1f".format(set.weightKg)} кг × ${set.reps}",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(
+                        text = "RIR ${set.rir}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
+                }
+                if (set.weightKg > 0) {
+                    Text(
+                        text = "1RM ~$epley1RM",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
