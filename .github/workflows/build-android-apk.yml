@@ -26,6 +26,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Licenses
+        run: yes | sdkmanager --licenses || true
+
       - name: Fix Line Endings & Permissions for gradlew
         run: |
           sed -i -e 's/\r$//' ./gradlew
@@ -35,12 +38,21 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle_build.log
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: gradle_build.log
+          if-no-files-found: ignore
 
       - name: Locate and copy APK
         run: |
           mkdir -p release_apk
-          find app/build/outputs/apk/ -name "*.apk" -exec cp {} release_apk/workout-tracker.apk \;
+          find app/build/outputs -name "*.apk" -exec cp {} release_apk/workout-tracker.apk \;
           ls -la release_apk/
 
       - name: Upload APK to GitHub Actions Artifacts
