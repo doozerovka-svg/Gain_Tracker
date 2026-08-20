@@ -41,12 +41,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Debug APK
-        run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || (echo "=== GRADLE FAILURE LOG ===" && tail -n 100 build.log && exit 1)
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Rename APK for release
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk workout-tracker.apk
+          APK_PATH=$(find app/build/outputs -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK found in app/build/outputs"
+            find app/build -type f
+            exit 1
+          fi
+          echo "Found APK at $APK_PATH"
+          cp "$APK_PATH" workout-tracker.apk
 
       - name: Upload APK to GitHub Actions Artifacts
         uses: actions/upload-artifact@v4
