@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Трекер Тренировок</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="tab_workout">Тренировка</string>
+    <string name="tab_calendar">Календарь</string>
+    <string name="tab_history">История</string>
+    <string name="tab_analytics">Аналитика</string>
+    <string name="tab_export">Экспорт</string>
+    <string name="tab_settings">Настройки</string>
+
+    <!-- Workout & Logging Screen -->
+    <string name="workout_title">Активная тренировка</string>
+    <string name="workout_start_btn">Начать тренировку</string>
+    <string name="workout_finish_btn">Завершить тренировку</string>
+    <string name="workout_cancel_btn">Отменить тренировку</string>
+    <string name="workout_add_exercise">Добавить упражнение</string>
+    <string name="workout_select_exercise">Выберите упражнение</string>
+    <string name="workout_set_number">Подход №%d</string>
+    <string name="workout_weight_kg">Вес (кг)</string>
+    <string name="workout_reps">Повторения</string>
+    <string name="workout_rir">RIR (в запасе)</string>
+    <string name="workout_save_set">Сохранить подход</string>
+    <string name="workout_delete_set">Удалить подход</string>
+    <string name="workout_notes_placeholder">Заметки к тренировке…</string>
+    <string name="workout_completed_badge">Завершена</string>
+    <string name="workout_draft_badge">Черновик</string>
+    <string name="workout_empty_state">Нет активной тренировки. Нажмите «Начать тренировку», чтобы зафиксировать подходы.</string>
+    <string name="workout_last_time_hint">Прошлый раз: %1$.1f кг × %2$d</string>
+    <string name="workout_weight_placeholder">0.0</string>
+    <string name="workout_reps_placeholder">0</string>
+
+    <!-- RIR Semantic Descriptions -->
+    <string name="rir_0">0 — До отказа (0 в запасе)</string>
+    <string name="rir_1">1 — Предельно тяжело (1 в запасе)</string>
+    <string name="rir_2">2 — Тяжело (2 в запасе)</string>
+    <string name="rir_3">3 — Умеренно (3 в запасе)</string>
+    <string name="rir_4">4 — Легко (4 в запасе)</string>
+    <string name="rir_5">5 — Разминка / Запас ≥ 5</string>
+
+    <!-- Rest Timer -->
+    <string name="timer_title">Отдых</string>
+    <string name="timer_rest_set">Отдых между подходами</string>
+    <string name="timer_rest_exercise">Отдых между упражнениями</string>
+    <string name="timer_add_30s">+30 сек</string>
+    <string name="timer_sub_30s">-30 сек</string>
+    <string name="timer_skip">Пропустить</string>
+    <string name="timer_notification_title">Время отдыха окончено!</string>
+    <string name="timer_notification_text">Пора начинать следующий подход.</string>
+    <string name="timer_notification_channel">Таймер отдыха</string>
+
+    <!-- Calendar Screen -->
+    <string name="calendar_title">Календарь тренировок</string>
+    <string name="calendar_view_month">Месяц</string>
+    <string name="calendar_view_week">Неделя</string>
+    <string name="calendar_no_workouts">Нет тренировок на этот день</string>
+    <string name="calendar_clone_session">Клонировать тренировку</string>
+    <string name="calendar_delete_session">Удалить тренировку</string>
+    <string name="calendar_dialog_clone_title">Клонирование тренировки</string>
+    <string name="calendar_dialog_clone_msg">Выберите дату для переноса упражнений и подходов:</string>
+    <string name="calendar_clone_success">Тренировка успешно скопирована</string>
+    <string name="calendar_today">Сегодня</string>
+    <string name="calendar_mon">Пн</string>
+    <string name="calendar_tue">Вт</string>
+    <string name="calendar_wed">Ср</string>
+    <string name="calendar_thu">Чт</string>
+    <string name="calendar_fri">Пт</string>
+    <string name="calendar_sat">Сб</string>
+    <string name="calendar_sun">Вс</string>
+
+    <!-- Analytics Screen -->
+    <string name="analytics_title">Аналитика прогресса</string>
+    <string name="analytics_select_exercise">Выберите упражнение</string>
+    <string name="analytics_period_1m">1 мес</string>
+    <string name="analytics_period_3m">3 мес</string>
+    <string name="analytics_period_6m">6 мес</string>
+    <string name="analytics_period_1y">1 год</string>
+    <string name="analytics_period_all">Всё время</string>
+    <string name="analytics_axis_date">Дата</string>
+    <string name="analytics_axis_1rm">Расчётный 1ПМ (кг)</string>
+    <string name="analytics_axis_weight">Рабочий вес (кг)</string>
+    <string name="analytics_formula_epley">Формула Эпли</string>
+    <string name="analytics_formula_brzycki">Формула Бжицки</string>
+    <string name="analytics_empty_chart">Недостаточно данных для графика. Завершите хотя бы одну тренировку с этим упражнением.</string>
+
+    <!-- Progression Algorithm -->
+    <string name="progression_title">Прогрессия нагрузки</string>
+    <string name="progression_step_label">Шаг инвентаря (кг)</string>
+    <string name="progression_recommended_weight">Рекомендуемый вес: %1$.2f кг</string>
+    <string name="progression_recommended_reps">Рекомендуемые повторения: %1$d</string>
+    <string name="progression_heavy_effort">Отличная работа (RIR %1$d). Нагрузка увеличена на 5%% (+%2$.2f кг).</string>
+    <string name="progression_moderate_effort">План выполнен с запасом (RIR %1$d). Вес увеличен до %2$.2f кг (+2%%).</string>
+    <string name="progression_deadband_reps">План выполнен с запасом (RIR %1$d). Рекомендуется увеличить повторения до %2$d.</string>
+    <string name="progression_hold_weight">План повторений не выполнен (%1$d / %2$d). Вес удерживается: %3$.2f кг.</string>
+    <string name="progression_bodyweight_add_weight">План выполнен с собственным весом. Рекомендуется добавить отягощение %1$.2f кг.</string>
+    <string name="progression_bodyweight_continue">План повторений не выполнен. Продолжайте тренировки с собственным весом.</string>
+
+    <!-- Export Screen -->
+    <string name="export_title">Экспорт данных</string>
+    <string name="export_excel_btn">Экспорт в Excel (.xlsx)</string>
+    <string name="export_pdf_btn">Сформировать PDF-отчёт</string>
+    <string name="export_period_select">Период отчёта</string>
+    <string name="export_generating">Формирование файла…</string>
+    <string name="export_success_excel">Файл Excel успешно сохранён</string>
+    <string name="export_success_pdf">PDF-отчёт успешно сформирован</string>
+    <string name="export_share_prompt">Открыть или отправить файл</string>
+    <string name="export_error">Ошибка при создании файла</string>
+
+    <!-- Categories in Russian -->
+    <string name="category_chest">Грудные</string>
+    <string name="category_back">Спина</string>
+    <string name="category_legs">Ноги</string>
+    <string name="category_shoulders">Плечи</string>
+    <string name="category_arms">Руки</string>
+    <string name="category_core">Пресс и кор</string>
+
+    <!-- Common UI -->
+    <string name="common_confirm">Подтвердить</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_save">Сохранить</string>
+    <string name="common_delete">Удалить</string>
+    <string name="common_edit">Редактировать</string>
+    <string name="common_close">Закрыть</string>
+    <string name="common_error">Ошибка</string>
+    <string name="common_kg">кг</string>
+    <string name="common_reps">повт.</string>
+    <string name="common_sets">подходов</string>
+    <string name="common_volume">Тоннаж: %1$.1f кг</string>
+</resources>
