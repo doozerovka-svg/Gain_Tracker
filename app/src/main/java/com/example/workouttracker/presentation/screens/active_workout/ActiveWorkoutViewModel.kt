@@ -117,20 +117,21 @@ class ActiveWorkoutViewModel(
     private fun observeActiveSession() {
         viewModelScope.launch {
             workoutRepository.getActiveSession().collect { activeSession ->
-                _uiState.update { current ->
-                    val selectedId = current.selectedExerciseId
-                        ?: activeSession?.sets?.lastOrNull()?.exerciseId
-                        ?: current.exercises.firstOrNull()?.id
+                val prevSelectedId = _uiState.value.selectedExerciseId
+                val newSelectedId = prevSelectedId
+                    ?: activeSession?.sets?.lastOrNull()?.exerciseId
+                    ?: _uiState.value.exercises.firstOrNull()?.id
 
+                _uiState.update { current ->
                     current.copy(
                         sessionWithSets = activeSession,
-                        selectedExerciseId = selectedId,
+                        selectedExerciseId = newSelectedId,
                         isLoading = false
                     )
                 }
 
-                _uiState.value.selectedExerciseId?.let { exerciseId ->
-                    loadAutoPopulatedAndProgression(exerciseId)
+                if (prevSelectedId == null && newSelectedId != null) {
+                    loadAutoPopulatedAndProgression(newSelectedId)
                 }
             }
         }
@@ -144,18 +145,20 @@ class ActiveWorkoutViewModel(
             ) { exercises, categories ->
                 Pair(exercises, categories)
             }.collect { (exercises, categories) ->
+                val prevSelectedId = _uiState.value.selectedExerciseId
+                val newSelectedId = prevSelectedId ?: exercises.firstOrNull()?.id
+
                 _uiState.update { current ->
-                    val selectedId = current.selectedExerciseId ?: exercises.firstOrNull()?.id
                     current.copy(
                         exercises = exercises,
                         categories = categories,
-                        selectedExerciseId = selectedId,
+                        selectedExerciseId = newSelectedId,
                         isLoading = false
                     )
                 }
 
-                _uiState.value.selectedExerciseId?.let { exerciseId ->
-                    loadAutoPopulatedAndProgression(exerciseId)
+                if (prevSelectedId == null && newSelectedId != null) {
+                    loadAutoPopulatedAndProgression(newSelectedId)
                 }
             }
         }

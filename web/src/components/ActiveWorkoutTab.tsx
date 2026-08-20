@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppDatabase } from '../db';
-import type { Category, Exercise, ProgressConfig, ProgressionResult, SetEntry, WorkoutSessionWithSets } from '../types';
+import type { Category, Exercise, ProgressConfig, WorkoutSessionWithSets } from '../types';
 import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
 import { 
@@ -19,7 +19,11 @@ type SortMode = 'BY_CATEGORY' | 'ALPHABETICAL' | 'RECENT';
 export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [categories] = useState<Category[]>(() => AppDatabase.getCategories());
   const [exercises, setExercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
-  const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => exercises[0]?.id || 1);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => {
+    const active = AppDatabase.getActiveSession();
+    const lastSet = active?.sets && active.sets.length > 0 ? active.sets[active.sets.length - 1] : null;
+    return lastSet ? lastSet.exerciseId : (exercises[0]?.id || 1);
+  });
   const [activeSession, setActiveSession] = useState<WorkoutSessionWithSets | null>(() => AppDatabase.getActiveSession());
   
   // Exercise filtering & sorting
@@ -71,38 +75,36 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
       case 'BY_CATEGORY':
         return list.sort((a, b) => a.categoryId - b.categoryId || a.name.localeCompare(b.name, 'ru'));
       case 'RECENT':
-        return list; // preserves custom addition order
+        return list;
     }
   }, [exercises, selectedCategoryId, searchQuery, sortMode]);
 
-  // Auto-populate weight & reps on exercise selection + calculate Progression recommendation
-  const { autoPopulated, progressionResult } = useMemo(() => {
+  // Calculate Progression recommendation
+  const progressionResult = useMemo(() => {
     const lastSet = AppDatabase.getLastCompletedSetForExercise(selectedExerciseId);
-    let autoPop: SetEntry | null = null;
-    let prog: ProgressionResult | null = null;
-
     if (lastSet) {
-      autoPop = lastSet;
       const config: ProgressConfig = AppDatabase.getConfig(selectedExerciseId);
-      prog = ProgressionEngine.calculateProgression(lastSet.weightKg, lastSet.reps, lastSet.rir, config);
+      return ProgressionEngine.calculateProgression(lastSet.weightKg, lastSet.reps, lastSet.rir, config);
     }
-    return { autoPopulated: autoPop, progressionResult: prog };
+    return null;
   }, [selectedExerciseId, activeSession]);
 
-  // When exercise changes, update inputs with previous values or progression
+  // When exercise explicitly changes, update inputs with previous values or progression
   useEffect(() => {
-    if (autoPopulated) {
-      const initWeight = progressionResult ? progressionResult.recommendedWeightKg : autoPopulated.weightKg;
-      const initReps = progressionResult ? progressionResult.recommendedReps : autoPopulated.reps;
-      setWeightKg(initWeight);
-      setReps(initReps || 8);
-      setRir(autoPopulated.rir || 2);
+    const lastSet = AppDatabase.getLastCompletedSetForExercise(selectedExerciseId);
+    const ex = exercises.find((e) => e.id === selectedExerciseId);
+    if (lastSet) {
+      const config = AppDatabase.getConfig(selectedExerciseId);
+      const prog = ProgressionEngine.calculateProgression(lastSet.weightKg, lastSet.reps, lastSet.rir, config);
+      setWeightKg(prog ? prog.recommendedWeightKg : lastSet.weightKg);
+      setReps(prog ? prog.recommendedReps : lastSet.reps);
+      setRir(lastSet.rir || 2);
     } else {
-      setWeightKg(selectedExercise?.isBodyweight ? 0 : 50);
+      setWeightKg(ex?.isBodyweight ? 0 : 50);
       setReps(8);
       setRir(2);
     }
-  }, [selectedExerciseId, autoPopulated, progressionResult, selectedExercise]);
+  }, [selectedExerciseId, exercises]);
 
   // Timer countdown ticker
   useEffect(() => {

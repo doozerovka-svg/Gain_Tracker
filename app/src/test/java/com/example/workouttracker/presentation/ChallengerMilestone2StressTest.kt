@@ -261,4 +261,41 @@ class ChallengerMilestone2StressTest {
             assertThat(viewModel.uiState.value.selectedExerciseId).isEqualTo(exId)
         }
     }
+
+    @Test
+    fun `edge case 6 - switching exercise and saving set preserves selected exercise without resetting to exercise 1`() = runTest(testDispatcher) {
+        val session = WorkoutSession(id = 88, status = WorkoutStatus.DRAFT)
+        val setsList = mutableListOf<SetEntry>()
+        activeSessionFlow.value = WorkoutSessionWithSets(session, setsList)
+
+        coEvery { workoutRepository.insertSet(any()) } answers {
+            val set = firstArg<SetEntry>()
+            setsList.add(set)
+            activeSessionFlow.value = WorkoutSessionWithSets(session, setsList.toList())
+            set.setNumber.toLong()
+        }
+
+        val viewModel = createViewModel()
+        testScheduler.advanceUntilIdle()
+
+        // 1. Initial exercise is 1L (e.g. Жим штанги лежа)
+        assertThat(viewModel.uiState.value.selectedExerciseId).isEqualTo(1L)
+
+        // 2. User switches to exercise 5L (e.g. Тяга штанги в наклоне)
+        viewModel.selectExercise(5L)
+        testScheduler.advanceUntilIdle()
+        assertThat(viewModel.uiState.value.selectedExerciseId).isEqualTo(5L)
+
+        // 3. User logs a set for exercise 5L
+        viewModel.setWeight(70.0)
+        viewModel.setReps(8)
+        viewModel.setRir(2)
+        viewModel.saveSet()
+        testScheduler.advanceUntilIdle()
+
+        // 4. Verify selected exercise REMAINS 5L and did NOT reset to 1L
+        assertThat(viewModel.uiState.value.selectedExerciseId).isEqualTo(5L)
+        assertThat(setsList).hasSize(1)
+        assertThat(setsList.first().exerciseId).isEqualTo(5L)
+    }
 }

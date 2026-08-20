@@ -48,7 +48,7 @@ export const App: React.FC = () => {
 
       {/* Main Content View */}
       <main className="flex-1 px-4 py-4 max-w-xl mx-auto w-full">
-        {activeTab === 'active' && <ActiveWorkoutTab key={refreshKey} onRefresh={handleRefresh} />}
+        {activeTab === 'active' && <ActiveWorkoutTab onRefresh={handleRefresh} />}
         {activeTab === 'calendar' && (
           <CalendarTab
             key={refreshKey}
