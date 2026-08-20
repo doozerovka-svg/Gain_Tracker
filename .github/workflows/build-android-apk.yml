@@ -48,7 +48,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Rename APK for release
         run: |
