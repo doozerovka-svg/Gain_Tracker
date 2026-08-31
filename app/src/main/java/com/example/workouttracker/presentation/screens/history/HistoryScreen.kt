@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.workouttracker.domain.model.SetEntry
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -233,11 +234,42 @@ private fun SetRow(set: SetEntry) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Подход #${set.setNumber}",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (set.setType != com.example.workouttracker.domain.model.SetType.NORMAL) {
+                    Surface(
+                        shape = RoundedCornerShape(3.dp),
+                        color = when (set.setType) {
+                            com.example.workouttracker.domain.model.SetType.WARMUP -> Color(0xFF388E3C).copy(alpha = 0.2f)
+                            com.example.workouttracker.domain.model.SetType.DROP_SET -> Color(0xFFE65100).copy(alpha = 0.2f)
+                            com.example.workouttracker.domain.model.SetType.FAILURE -> Color(0xFFD32F2F).copy(alpha = 0.2f)
+                            else -> MaterialTheme.colorScheme.surface
+                        }
+                    ) {
+                        Text(
+                            text = set.setType.shortTag,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 9.sp,
+                                color = when (set.setType) {
+                                    com.example.workouttracker.domain.model.SetType.WARMUP -> Color(0xFF388E3C)
+                                    com.example.workouttracker.domain.model.SetType.DROP_SET -> Color(0xFFE65100)
+                                    com.example.workouttracker.domain.model.SetType.FAILURE -> Color(0xFFD32F2F)
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                            ),
+                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = "Подход #${set.setNumber}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Text(
                 text = "${"%.1f".format(set.weightKg)} кг × ${set.reps}",
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)

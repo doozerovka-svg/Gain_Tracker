@@ -165,6 +165,58 @@ class ExportViewModel(
         }
     }
 
+    fun exportJsonBackup(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportResult = null) }
+            try {
+                val db = (context.applicationContext as com.example.workouttracker.WorkoutApplication).database
+                val backupManager = com.example.workouttracker.export.JsonBackupManager(db)
+                val json = backupManager.createBackupJson()
+
+                val fileName = "workout_tracker_backup_${System.currentTimeMillis()}.json"
+                val exportDir = File(context.cacheDir, "exports")
+                exportDir.mkdirs()
+                val file = File(exportDir, fileName)
+                withContext(Dispatchers.IO) {
+                    file.writeText(json)
+                }
+
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Поделиться резервной копией").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                _uiState.update { it.copy(isExporting = false, exportResult = "Резервная копия JSON успешно создана") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isExporting = false, exportResult = "Ошибка бэкапа: ${e.message}") }
+            }
+        }
+    }
+
+    fun restoreJsonBackup(context: Context, jsonContent: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportResult = null) }
+            try {
+                val db = (context.applicationContext as com.example.workouttracker.WorkoutApplication).database
+                val backupManager = com.example.workouttracker.export.JsonBackupManager(db)
+                val result = backupManager.restoreBackupJson(jsonContent)
+                result.onSuccess { count ->
+                    _uiState.update { it.copy(isExporting = false, exportResult = "База успешно восстановлена ($count записей)") }
+                }.onFailure { err ->
+                    _uiState.update { it.copy(isExporting = false, exportResult = "Ошибка восстановления: ${err.message}") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isExporting = false, exportResult = "Ошибка: ${e.message}") }
+            }
+        }
+    }
+
     fun clearExportResult() {
         _uiState.update { it.copy(exportResult = null) }
     }

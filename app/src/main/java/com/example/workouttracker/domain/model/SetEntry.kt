@@ -8,6 +8,8 @@ data class SetEntry(
     val weightKg: Double,
     val reps: Int,
     val rir: Int,
+    val setType: SetType = SetType.NORMAL,
+    val superSetId: Long? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val isCompleted: Boolean = true
 )

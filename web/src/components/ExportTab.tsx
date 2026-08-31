@@ -246,6 +246,69 @@ export const ExportTab: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Full Offline JSON Backup & Restore Card */}
+      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 space-y-3 shadow-sm">
+        <div className="text-sm font-bold text-white flex items-center gap-2">
+          <Download size={18} className="text-blue-400" />
+          Полное резервное копирование (JSON)
+        </div>
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Экспортируйте или импортируйте всю локальную базу (упражнения, историю, замеры тела и настройки) в единый JSON файл.
+        </p>
+
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <button
+            onClick={() => {
+              try {
+                const json = AppDatabase.exportFullBackupJson();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `gain_tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showStatus('success', 'Резервная копия JSON успешно скачана!');
+              } catch (e) {
+                showStatus('error', `Ошибка экспорта: ${(e as Error).message}`);
+              }
+            }}
+            className="touch-target bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition"
+          >
+            Экспорт JSON
+          </button>
+
+          <label className="touch-target bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition cursor-pointer text-center">
+            <span>Импорт JSON</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                  try {
+                    const text = evt.target?.result as string;
+                    const res = AppDatabase.importFullBackupJson(text);
+                    if (res.success) {
+                      showStatus('success', `База успешно восстановлена (${res.count} записей)! Перезагрузка...`);
+                      setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                      showStatus('error', `Ошибка импорта: ${res.error}`);
+                    }
+                  } catch (err) {
+                    showStatus('error', `Ошибка чтения файла: ${(err as Error).message}`);
+                  }
+                };
+                reader.readAsText(file);
+              }}
+            />
+          </label>
+        </div>
+      </div>
     </div>
   );
 };

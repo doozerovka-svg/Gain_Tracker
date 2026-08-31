@@ -80,15 +80,21 @@ app/
 | 20 | 100% Russian Localization | Russian UI strings, dialogs, buttons, dates, table headers | M1-M4 | Original Request (line 7) |
 | 21 | Room SQLite Local-First DB | Pre-populated library of Russian exercises, categories, DAOs, transactions | M1 | Model (line 31-39) |
 | 22 | Full E2E & Unit Test Harness | Complete test suite across Tiers 1-4 + Tier 5 coverage hardening | M5 | Acceptance Criteria |
+| 23 | Set Tags (Warmup, Drop, Failure) | Explicit tags for sets (W, N, D, F) to exclude warmups from volume | M2 | GymKeeper Audit |
+| 24 | Superset & Circuit Grouping | Group exercises visually with a shared rest timer | M2 | GymKeeper Audit |
+| 25 | Quick Swap Exercise | Replace active exercise mid-workout preserving logged sets | M2 | GymKeeper Audit |
+| 26 | Plate Calculator | Visual scheme for loading plates for calculated target weights | M3 | GymKeeper Audit |
+| 27 | Body Tracker & Photos | Track bodyweight, body fat, measurements, and progress photos | M4 | GymKeeper Audit |
+| 28 | Auto-Periodization Engine | Suggest deload weeks automatically on persistent RIR=0 or plateaus | M5 | GymKeeper Audit (Radical) |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Project Setup, Room DB, Domain Models & Progression Engine | Gradle project scaffolding, Room Database, Prepopulated Russian exercises, DAOs, Progression Engine (all 3 branches + inventory rounding), 1RM Calculators, and Unit Tests | none | DONE |
-| M2 | Active Workout Screen, Logging & Rest Timer | Active workout Compose UI, +X buttons (+1..+20kg), numeric pad, RIR slider (0..5), touch targets >=48dp, click budget <=4, Rest Timer manager, background notification & vibration | M1 | PLANNED |
-| M3 | Calendar, Workout History, Session Cloning & Auto-Population | Monthly / Weekly Calendar UI, colored workout badges, Session Cloning use case & dialog, Last Completed Set auto-population engine with empty history fallback | M1, M2 | PLANNED |
-| M4 | Analytics Progress Charts & Offline Excel/PDF Export | Dual-axis progress chart (Date vs 1RM & Working weight), pure offline XLSX streaming export, vector PDF report generator, Share intent integration | M1, M2, M3 | PLANNED |
-| M5 | E2E Testing, Adversarial Hardening, Build Verification & Forensic Audit | Full execution of Tiers 1-4 E2E tests, Tier 5 adversarial coverage, Gradle `assembleDebug` & `testDebugUnitTest` verification, Agent-as-Judge reviews, Forensic Integrity Audit | M1, M2, M3, M4 | PLANNED |
+| M1 | Project Setup, Room DB, Domain Models & Progression Engine | Gradle project scaffolding, Room Database, Prepopulated Russian exercises, DAOs, Progression Engine (all 3 branches + inventory rounding), 1RM Calculators, and Unit Tests. *Includes Set Tags and Superset data model support.* | none | DONE |
+| M2 | Active Workout Screen, Logging & Rest Timer | Active workout Compose UI, +X buttons (+1..+20kg), numeric pad, RIR slider (0..5), touch targets >=48dp, click budget <=4, Rest Timer manager (PiP/Foreground), Set Tags UI, Superset UI, Quick Swap, background notification & vibration | M1 | PLANNED |
+| M3 | Calendar, Workout History, Session Cloning & Auto-Population | Monthly / Weekly Calendar UI, colored workout badges, Session Cloning use case & dialog, Last Completed Set auto-population engine with empty history fallback, Plate Calculator | M1, M2 | PLANNED |
+| M4 | Analytics Progress Charts & Offline Excel/PDF Export | Dual-axis progress chart (Date vs 1RM & Working weight), pure offline XLSX streaming export, vector PDF report generator, Share intent integration, Body Tracker & Photos | M1, M2, M3 | PLANNED |
+| M5 | E2E Testing & Advanced AI/Progression Features | Full execution of Tiers 1-4 E2E tests, Tier 5 adversarial coverage, Auto-Periodization Engine, On-Device ML/RPG Gamification exploration | M1, M2, M3, M4 | PLANNED |
 
 ## Interface Contracts
 

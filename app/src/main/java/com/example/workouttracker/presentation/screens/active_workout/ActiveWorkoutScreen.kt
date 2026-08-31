@@ -40,7 +40,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,6 +50,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import com.example.workouttracker.domain.model.SetType
+import com.example.workouttracker.presentation.components.PlateCalculatorDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -128,10 +132,14 @@ fun ActiveWorkoutScreen(
                         uiState = uiState,
                         onCompleteWorkout = { viewModel.completeWorkout() },
                         onOpenAddExerciseDialog = { viewModel.openAddExerciseDialog(true) },
+                        onOpenQuickSwap = { viewModel.openQuickSwapDialog(true) },
+                        onOpenPlateCalculator = { viewModel.openPlateCalculator(true) },
                         onSelectExercise = { viewModel.selectExercise(it) },
                         onIncrementWeight = { viewModel.incrementWeight(it) },
+                        onSetWeight = { viewModel.setWeight(it) },
                         onSetReps = { viewModel.setReps(it) },
                         onSetRir = { viewModel.setRir(it) },
+                        onSetSetType = { viewModel.setSetType(it) },
                         onSaveSet = { viewModel.saveSet() },
                         onDeleteSet = { viewModel.deleteSet(it) },
                         onToggleKeypad = { viewModel.toggleNumericKeypad(!uiState.isNumericKeypadOpen) },
@@ -140,6 +148,28 @@ fun ActiveWorkoutScreen(
                         onSkipTimer = { viewModel.skipTimer() }
                     )
                 }
+            }
+
+            // Plate Calculator Dialog
+            if (uiState.isPlateCalculatorOpen) {
+                PlateCalculatorDialog(
+                    initialWeight = uiState.inputWeightKg,
+                    onDismiss = { viewModel.openPlateCalculator(false) },
+                    onApplyWeight = { weight ->
+                        viewModel.setWeight(weight)
+                    }
+                )
+            }
+
+            // Quick Swap Exercise Dialog
+            if (uiState.isQuickSwapDialogOpen) {
+                QuickSwapDialog(
+                    uiState = uiState,
+                    onDismiss = { viewModel.openQuickSwapDialog(false) },
+                    onSwap = { newExId ->
+                        viewModel.quickSwapExercise(newExId)
+                    }
+                )
             }
 
             // Exercise Selection Dialog
@@ -227,10 +257,14 @@ private fun CompactWorkoutContent(
     uiState: ActiveWorkoutUiState,
     onCompleteWorkout: () -> Unit,
     onOpenAddExerciseDialog: () -> Unit,
+    onOpenQuickSwap: () -> Unit,
+    onOpenPlateCalculator: () -> Unit,
     onSelectExercise: (Long) -> Unit,
     onIncrementWeight: (Double) -> Unit,
+    onSetWeight: (Double) -> Unit,
     onSetReps: (Int) -> Unit,
     onSetRir: (Int) -> Unit,
+    onSetSetType: (SetType) -> Unit,
     onSaveSet: () -> Unit,
     onDeleteSet: (Long) -> Unit,
     onToggleKeypad: () -> Unit,
@@ -251,6 +285,35 @@ private fun CompactWorkoutContent(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Deload Periodization Banner (if fatigue detected)
+        uiState.deloadAdvice?.let { deload ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Разгрузочная неделя (Deload)",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = deload.reasonRu,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+        }
+
         // 1. Compact Header Bar (Stats + Timer + Complete)
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -336,7 +399,7 @@ private fun CompactWorkoutContent(
             }
         }
 
-        // 2. Exercise Selection Row
+        // 2. Exercise Selection Row with Quick Swap
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -357,13 +420,30 @@ private fun CompactWorkoutContent(
                         .clickable { onOpenAddExerciseDialog() }
                 )
 
-                FilledTonalButton(
-                    onClick = onOpenAddExerciseDialog,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("Выбрать / +", style = MaterialTheme.typography.labelSmall)
+                    IconButton(
+                        onClick = onOpenQuickSwap,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = "Быстрая замена",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    FilledTonalButton(
+                        onClick = onOpenAddExerciseDialog,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
+                    ) {
+                        Text("Выбрать / +", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
         }
@@ -453,11 +533,27 @@ private fun CompactWorkoutContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Вес (кг)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
-                        IconButton(
-                            onClick = onToggleKeypad,
-                            modifier = Modifier.size(24.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Icon(Icons.Default.Keyboard, contentDescription = null, modifier = Modifier.size(16.dp))
+                            IconButton(
+                                onClick = onOpenPlateCalculator,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = "Калькулятор блинов",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = onToggleKeypad,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Keyboard, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
 
@@ -694,6 +790,55 @@ private fun CompactWorkoutContent(
             }
         }
 
+        // 4b. Set Type Selector (Normal, Warmup, Dropset, Failure)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            Column(
+                modifier = Modifier.padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text("Тип подхода", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    SetType.entries.forEach { type ->
+                        val isSelected = uiState.selectedSetType == type
+                        val chipColor = when (type) {
+                            SetType.NORMAL -> MaterialTheme.colorScheme.primary
+                            SetType.WARMUP -> Color(0xFF388E3C)
+                            SetType.DROP_SET -> Color(0xFFE65100)
+                            SetType.FAILURE -> Color(0xFFD32F2F)
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) chipColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surface,
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, chipColor) else null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 32.dp)
+                                .clickable { onSetSetType(type) }
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 5.dp)) {
+                                Text(
+                                    text = type.titleRu,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium,
+                                        color = if (isSelected) chipColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 5. Main Action Button (>=48dp touch target)
         Button(
             onClick = onSaveSet,
@@ -738,7 +883,7 @@ private fun CompactWorkoutContent(
                 uiState.exerciseSetsMap.forEach { (exerciseId, exerciseSets) ->
                     val exercise = uiState.exercises.find { it.id == exerciseId }
                     val isCurrentActive = activeExercise?.id == exerciseId
-                    val exerciseVolume = exerciseSets.sumOf { it.weightKg * it.reps }
+                    val exerciseVolume = exerciseSets.filter { it.setType != SetType.WARMUP }.sumOf { it.weightKg * it.reps }
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -838,6 +983,33 @@ private fun CompactWorkoutContent(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
+                                            if (set.setType != SetType.NORMAL) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(3.dp),
+                                                    color = when (set.setType) {
+                                                        SetType.WARMUP -> Color(0xFF388E3C).copy(alpha = 0.2f)
+                                                        SetType.DROP_SET -> Color(0xFFE65100).copy(alpha = 0.2f)
+                                                        SetType.FAILURE -> Color(0xFFD32F2F).copy(alpha = 0.2f)
+                                                        else -> MaterialTheme.colorScheme.surface
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = set.setType.shortTag,
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontWeight = FontWeight.Black,
+                                                            fontSize = 9.sp,
+                                                            color = when (set.setType) {
+                                                                SetType.WARMUP -> Color(0xFF388E3C)
+                                                                SetType.DROP_SET -> Color(0xFFE65100)
+                                                                SetType.FAILURE -> Color(0xFFD32F2F)
+                                                                else -> MaterialTheme.colorScheme.onSurface
+                                                            }
+                                                        ),
+                                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+
                                             Text(
                                                 text = "#${set.setNumber}",
                                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1222,3 +1394,102 @@ private fun CreateExerciseDialog(
         }
     )
 }
+
+/**
+ * Quick Swap Dialog — allows swapping the active exercise "on the fly" without losing workout progress.
+ */
+@Composable
+private fun QuickSwapDialog(
+    uiState: ActiveWorkoutUiState,
+    onDismiss: () -> Unit,
+    onSwap: (Long) -> Unit
+) {
+    val currentEx = uiState.activeExercise
+    val sameCategoryExercises = uiState.exercises.filter {
+        it.id != currentEx?.id && (currentEx == null || it.categoryId == currentEx.categoryId)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SwapHoriz,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Замена упражнения",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Тренажер занят? Замените упражнение на альтернативу для той же группы мышц:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (sameCategoryExercises.isEmpty()) {
+                    Text(
+                        text = "В этой категории нет других упражнений. Создайте новое через меню выбора.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                } else {
+                    sameCategoryExercises.forEach { ex ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSwap(ex.id) },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = ex.name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = if (ex.isBodyweight) "Свой вес" else "Со снарядом",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.SwapHoriz,
+                                    contentDescription = "Заменить",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+}
+

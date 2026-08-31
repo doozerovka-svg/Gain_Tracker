@@ -50,12 +50,17 @@ data class ActiveWorkoutUiState(
     val inputWeightKg: Double = 0.0,
     val inputReps: Int = 10,
     val inputRir: Int = 2,
+    val selectedSetType: com.example.workouttracker.domain.model.SetType = com.example.workouttracker.domain.model.SetType.NORMAL,
+    val selectedSuperSetId: Long? = null,
     val rawWeightString: String = "0",
     val autoPopulatedValues: AutoPopulatedValues? = null,
     val progressionResult: ProgressionResult? = null,
+    val deloadAdvice: com.example.workouttracker.domain.usecase.DeloadAdvice? = null,
     val isAddExerciseDialogOpen: Boolean = false,
     val isCreateExerciseDialogOpen: Boolean = false,
     val isNumericKeypadOpen: Boolean = false,
+    val isPlateCalculatorOpen: Boolean = false,
+    val isQuickSwapDialogOpen: Boolean = false,
     val selectedMuscleCategoryId: Long? = null,
     val exerciseSearchQuery: String = "",
     val exerciseSortOrder: ExerciseSortOrder = ExerciseSortOrder.BY_CATEGORY,
@@ -73,7 +78,7 @@ data class ActiveWorkoutUiState(
         get() = sessionWithSets?.sets?.size ?: 0
 
     val totalVolumeKg: Double
-        get() = sessionWithSets?.sets?.sumOf { it.weightKg * it.reps } ?: 0.0
+        get() = sessionWithSets?.sets?.filter { it.setType != com.example.workouttracker.domain.model.SetType.WARMUP }?.sumOf { it.weightKg * it.reps } ?: 0.0
 
     val filteredAndSortedExercises: List<Exercise>
         get() {
@@ -102,6 +107,7 @@ class ActiveWorkoutViewModel(
     private val calculateProgressionUseCase: CalculateProgressionUseCase = CalculateProgressionUseCase(),
     private val getAutoPopulatedValuesUseCase: GetAutoPopulatedValuesUseCase = GetAutoPopulatedValuesUseCase(workoutRepository),
     private val createExerciseUseCase: CreateExerciseUseCase = CreateExerciseUseCase(exerciseRepository),
+    private val checkDeloadRecommendationUseCase: com.example.workouttracker.domain.usecase.CheckDeloadRecommendationUseCase = com.example.workouttracker.domain.usecase.CheckDeloadRecommendationUseCase(),
     val restTimerManager: RestTimerManager = RestTimerManager()
 ) : ViewModel() {
 
@@ -112,6 +118,18 @@ class ActiveWorkoutViewModel(
         observeActiveSession()
         observeExercisesAndCategories()
         observeRestTimer()
+        evaluateDeload()
+    }
+
+    private fun evaluateDeload() {
+        viewModelScope.launch {
+            workoutRepository.getAllSessions().collect { allSessions ->
+                val completed = allSessions.filter { it.session.status == com.example.workouttracker.domain.model.WorkoutStatus.COMPLETED }
+                    .sortedByDescending { it.session.date }
+                val advice = checkDeloadRecommendationUseCase.evaluate(completed)
+                _uiState.update { it.copy(deloadAdvice = if (advice.isRecommended) advice else null) }
+            }
+        }
     }
 
     private fun observeActiveSession() {
@@ -356,6 +374,8 @@ class ActiveWorkoutViewModel(
                 weightKg = currentState.inputWeightKg,
                 reps = currentState.inputReps,
                 rir = currentState.inputRir,
+                setType = currentState.selectedSetType,
+                superSetId = currentState.selectedSuperSetId,
                 timestamp = System.currentTimeMillis(),
                 isCompleted = true
             )
@@ -376,10 +396,38 @@ class ActiveWorkoutViewModel(
                     sessionWithSets = updatedSession,
                     isNumericKeypadOpen = false,
                     timerState = restTimerManager.timerState.value,
-                    userMessage = "Подход №$nextSetNumber сохранён"
+                    userMessage = "Подход №$nextSetNumber (${currentState.selectedSetType.titleRu}) сохранён"
                 )
             }
         }
+    }
+
+    fun setSetType(type: com.example.workouttracker.domain.model.SetType) {
+        _uiState.update { it.copy(selectedSetType = type) }
+    }
+
+    fun setSuperSetId(superSetId: Long?) {
+        _uiState.update { it.copy(selectedSuperSetId = superSetId) }
+    }
+
+    fun openPlateCalculator(isOpen: Boolean) {
+        _uiState.update { it.copy(isPlateCalculatorOpen = isOpen) }
+    }
+
+    fun openQuickSwapDialog(isOpen: Boolean) {
+        _uiState.update { it.copy(isQuickSwapDialogOpen = isOpen) }
+    }
+
+    fun quickSwapExercise(newExerciseId: Long) {
+        val newEx = _uiState.value.exercises.find { it.id == newExerciseId }
+        _uiState.update {
+            it.copy(
+                selectedExerciseId = newExerciseId,
+                isQuickSwapDialogOpen = false,
+                userMessage = "Упражнение заменено на «${newEx?.name}»"
+            )
+        }
+        loadAutoPopulatedAndProgression(newExerciseId)
     }
 
     fun deleteSet(setId: Long) {

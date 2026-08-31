@@ -127,6 +127,15 @@ fun AppNavHost(
                 AnalyticsScreen(viewModel = analyticsViewModel)
             }
 
+            composable(Screen.Body.route) {
+                val bodyViewModel: com.example.workouttracker.presentation.screens.body.BodyMeasurementsViewModel = viewModel(
+                    factory = com.example.workouttracker.presentation.screens.body.BodyMeasurementsViewModelFactory(
+                        bodyMeasurementDao = context.bodyMeasurementDao
+                    )
+                )
+                com.example.workouttracker.presentation.screens.body.BodyMeasurementsScreen(viewModel = bodyViewModel)
+            }
+
             composable(Screen.Export.route) {
                 val exportViewModel: ExportViewModel = viewModel(
                     factory = ExportViewModelFactory(

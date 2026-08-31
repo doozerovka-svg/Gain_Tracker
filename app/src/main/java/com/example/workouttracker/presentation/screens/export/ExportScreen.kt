@@ -152,6 +152,51 @@ fun ExportScreen(viewModel: ExportViewModel) {
                         Text("Экспорт в PDF", style = MaterialTheme.typography.bodyLarge)
                     }
 
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "Резервное копирование (JSON)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                    ) { uri ->
+                        uri?.let {
+                            try {
+                                val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader -> reader.readText() }
+                                if (content != null) {
+                                    viewModel.restoreJsonBackup(context, content)
+                                }
+                            } catch (e: Exception) {
+                                // Handled via viewModel
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.exportJsonBackup(context) },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                        ) {
+                            Text("Экспорт JSON", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer))
+                        }
+
+                        Button(
+                            onClick = { filePickerLauncher.launch("application/json") },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                        ) {
+                            Text("Импорт JSON", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiaryContainer))
+                        }
+                    }
+
                     if (state.sessionsCount == 0) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(

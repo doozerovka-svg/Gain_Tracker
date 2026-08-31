@@ -21,6 +21,8 @@ export interface WorkoutSession {
   notes: string;
 }
 
+export type SetType = 'NORMAL' | 'WARMUP' | 'DROP_SET' | 'FAILURE';
+
 export interface SetEntry {
   id: number;
   workoutSessionId: number;
@@ -29,6 +31,8 @@ export interface SetEntry {
   weightKg: number;
   reps: number;
   rir: number; // 0..5
+  setType?: SetType;
+  superSetId?: number | null;
   timestamp: number;
   isCompleted: boolean;
 }
@@ -36,6 +40,20 @@ export interface SetEntry {
 export interface WorkoutSessionWithSets {
   session: WorkoutSession;
   sets: SetEntry[];
+}
+
+export interface BodyMeasurement {
+  id: number;
+  date: number;
+  weightKg?: number;
+  bodyFatPercentage?: number;
+  chestCm?: number;
+  waistCm?: number;
+  bicepsCm?: number;
+  thighsCm?: number;
+  calvesCm?: number;
+  neckCm?: number;
+  notes?: string;
 }
 
 export interface ProgressConfig {
@@ -53,4 +71,5 @@ export interface ProgressionResult {
   explanationRu: string;
 }
 
-export type TabType = 'active' | 'calendar' | 'history' | 'analytics' | 'export';
+export type TabType = 'active' | 'calendar' | 'history' | 'analytics' | 'body' | 'export';
+

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppDatabase } from '../db';
 import type { Exercise } from '../types';
 import { ProgressionEngine } from '../progression';
-import { TrendingUp, Award, Flame, Dumbbell } from 'lucide-react';
+import { TrendingUp, Award, Flame, Dumbbell, AlertTriangle } from 'lucide-react';
 
 interface DataPoint {
   date: number;
@@ -25,6 +25,70 @@ export const AnalyticsTab: React.FC = () => {
     []
   );
 
+  // Strength Ranks & Big 3 calculation
+  const strengthProfile = useMemo(() => {
+    const getMax1RM = (names: string[]) => {
+      const matchIds = exercises.filter((e) => names.some((n) => e.name.toLowerCase().includes(n.toLowerCase()))).map((e) => e.id);
+      let max1RM = 0;
+      sessions.forEach((s) => {
+        s.sets.filter((st) => matchIds.includes(st.exerciseId) && st.setType !== 'WARMUP').forEach((st) => {
+          const val = ProgressionEngine.calculateEpley(st.weightKg, st.reps);
+          if (val > max1RM) max1RM = val;
+        });
+      });
+      return max1RM;
+    };
+
+    const bench = getMax1RM(['Жим лежа', 'Жим штанги лежа', 'Bench']);
+    const squat = getMax1RM(['Приседания', 'Squat']);
+    const deadlift = getMax1RM(['Становая тяга', 'Deadlift']);
+    const ohp = getMax1RM(['Армейский жим', 'Жим стоя', 'OHP']);
+    const totalBig3 = bench + squat + deadlift;
+
+    // DOTS coefficient (bodyweight 75kg default)
+    const bw = 75.0;
+    const denom = -0.000001093 * Math.pow(bw, 4) + 0.0007391293 * Math.pow(bw, 3) - 0.191867609 * Math.pow(bw, 2) + 24.0900756 * bw - 307.75076;
+    const dotsScore = denom > 0 ? (totalBig3 * 500.0) / denom : 0;
+
+    let rank = { title: 'Новичок', emoji: '🌱', desc: 'Начало железного пути', minDots: 0, nextDots: 200 };
+    if (dotsScore >= 485) rank = { title: 'Элита', emoji: '🔥', desc: 'Вершина силового спорта', minDots: 485, nextDots: 999 };
+    else if (dotsScore >= 425) rank = { title: 'КМС / Профи', emoji: '👑', desc: 'Уровень национальных соревнований', minDots: 425, nextDots: 485 };
+    else if (dotsScore >= 350) rank = { title: 'Разрядник', emoji: '⚔️', desc: 'Высокие силовые показатели', minDots: 350, nextDots: 425 };
+    else if (dotsScore >= 275) rank = { title: 'Атлет', emoji: '🛡️', desc: 'Уверенный продвинутый атлет', minDots: 275, nextDots: 350 };
+    else if (dotsScore >= 200) rank = { title: 'Любитель', emoji: '⚡', desc: 'Хорошая базовая форма', minDots: 200, nextDots: 275 };
+
+    return {
+      bench,
+      squat,
+      deadlift,
+      ohp,
+      totalBig3,
+      dotsScore,
+      rank,
+      dotsToNext: Math.max(0, rank.nextDots - dotsScore),
+    };
+  }, [sessions, exercises]);
+
+  // Deload periodization fatigue calculation
+  const deloadAdvice = useMemo(() => {
+    if (sessions.length < 3) return null;
+    const recent = [...sessions].reverse().slice(0, 5);
+    const lowRirCount = recent.filter((s) => {
+      const working = s.sets.filter((st) => st.setType !== 'WARMUP');
+      if (working.length === 0) return false;
+      const avgRir = working.reduce((sum, st) => sum + st.rir, 0) / working.length;
+      return avgRir <= 1.2 || working.some((st) => st.rir === 0);
+    }).length;
+
+    if (lowRirCount >= 3) {
+      return {
+        recommended: true,
+        reason: 'Накоплена усталость ЦНС (3+ тяжелых сессии подряд с RIR ≤ 1). Рекомендуется разгрузочная неделя: снизьте вес на 20% и повторы на 30%.',
+      };
+    }
+    return null;
+  }, [sessions]);
+
   // Build chart data
   const { dataPoints, maxOneRM, totalVolume, totalSessionsCount } = useMemo(() => {
     const points: DataPoint[] = [];
@@ -33,7 +97,7 @@ export const AnalyticsTab: React.FC = () => {
     let count = 0;
 
     sessions.forEach((sw) => {
-      const exSets = sw.sets.filter((s) => s.exerciseId === selectedExerciseId);
+      const exSets = sw.sets.filter((s) => s.exerciseId === selectedExerciseId && s.setType !== 'WARMUP');
       if (exSets.length === 0) return;
 
       count++;
@@ -220,6 +284,62 @@ export const AnalyticsTab: React.FC = () => {
           Аналитика прогресса
         </h2>
       </div>
+
+      {/* RPG Strength Rank Card */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950/60 border border-slate-700/70 rounded-2xl p-4 space-y-3 shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-3xl">{strengthProfile.rank.emoji}</span>
+            <div>
+              <div className="text-sm font-extrabold text-white flex items-center gap-1.5">
+                <span>Силовой ранг: {strengthProfile.rank.title}</span>
+              </div>
+              <div className="text-xs text-slate-400">{strengthProfile.rank.desc}</div>
+            </div>
+          </div>
+
+          <div className="px-2.5 py-1 bg-blue-600/30 border border-blue-500/40 rounded-xl text-blue-300 text-xs font-black">
+            {strengthProfile.dotsScore.toFixed(0)} DOTS
+          </div>
+        </div>
+
+        {/* Big 3 stats */}
+        <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-700/50 text-center">
+          <div>
+            <div className="text-[10px] uppercase text-slate-400 font-bold">Жим</div>
+            <div className="text-xs font-bold text-white">{strengthProfile.bench.toFixed(0)} кг</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase text-slate-400 font-bold">Присед</div>
+            <div className="text-xs font-bold text-white">{strengthProfile.squat.toFixed(0)} кг</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase text-slate-400 font-bold">Тяга</div>
+            <div className="text-xs font-bold text-white">{strengthProfile.deadlift.toFixed(0)} кг</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase text-blue-400 font-bold">Сумма</div>
+            <div className="text-xs font-black text-blue-300">{strengthProfile.totalBig3.toFixed(0)} кг</div>
+          </div>
+        </div>
+
+        {strengthProfile.dotsToNext > 0 && (
+          <div className="text-[11px] text-slate-400 text-right pt-0.5">
+            До следующего ранга: <b className="text-slate-200">+{strengthProfile.dotsToNext.toFixed(1)}</b> очков DOTS
+          </div>
+        )}
+      </div>
+
+      {/* Deload Periodization Alert Banner */}
+      {deloadAdvice && (
+        <div className="bg-red-950/40 border border-red-500/40 rounded-2xl p-3.5 flex items-start gap-2.5 shadow-sm text-red-200">
+          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <div className="font-bold text-red-300">Рекомендация: Разгрузочная неделя (Deload)</div>
+            <p className="text-red-200/90 leading-relaxed">{deloadAdvice.reason}</p>
+          </div>
+        </div>
+      )}
 
       {/* Exercise Selector */}
       <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">

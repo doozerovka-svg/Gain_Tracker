@@ -16,6 +16,9 @@ interface SetEntryDao {
     @Query("SELECT * FROM set_entries WHERE workoutSessionId = :sessionId ORDER BY id ASC")
     suspend fun getSetsForSessionSync(sessionId: Long): List<SetEntryEntity>
 
+    @Query("SELECT * FROM set_entries ORDER BY id ASC")
+    suspend fun getAllSetsList(): List<SetEntryEntity>
+
     @Query("""
         SELECT s.* FROM set_entries s
         INNER JOIN workout_sessions w ON s.workoutSessionId = w.id
@@ -23,7 +26,10 @@ interface SetEntryDao {
           AND w.status = 'COMPLETED'
           AND w.date <= :beforeDate
           AND s.isCompleted = 1
-        ORDER BY w.date DESC, s.setNumber DESC
+        ORDER BY 
+          CASE WHEN s.setType != 'WARMUP' THEN 0 ELSE 1 END ASC,
+          w.date DESC, 
+          s.setNumber DESC
         LIMIT 1
     """)
     suspend fun getLastCompletedSetForExercise(exerciseId: Long, beforeDate: Long): SetEntryEntity?

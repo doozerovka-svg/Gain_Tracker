@@ -12,6 +12,8 @@ import com.example.workouttracker.data.local.dao.SetEntryDao
 import com.example.workouttracker.data.local.dao.WorkoutSessionDao
 import com.example.workouttracker.data.local.entity.CategoryEntity
 import com.example.workouttracker.data.local.entity.ExerciseEntity
+import com.example.workouttracker.data.local.dao.BodyMeasurementDao
+import com.example.workouttracker.data.local.entity.BodyMeasurementEntity
 import com.example.workouttracker.data.local.entity.ProgressConfigEntity
 import com.example.workouttracker.data.local.entity.SetEntryEntity
 import com.example.workouttracker.data.local.entity.WorkoutSessionEntity
@@ -25,9 +27,10 @@ import kotlinx.coroutines.launch
         ExerciseEntity::class,
         WorkoutSessionEntity::class,
         SetEntryEntity::class,
-        ProgressConfigEntity::class
+        ProgressConfigEntity::class,
+        BodyMeasurementEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun setEntryDao(): SetEntryDao
     abstract fun progressConfigDao(): ProgressConfigDao
+    abstract fun bodyMeasurementDao(): BodyMeasurementDao
 
     companion object {
         @Volatile
@@ -49,6 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "workout_tracker.db"
                 )
+                    .fallbackToDestructiveMigration()
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)

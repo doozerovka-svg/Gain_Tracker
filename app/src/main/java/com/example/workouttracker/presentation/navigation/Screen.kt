@@ -41,6 +41,12 @@ sealed class Screen(
         icon = Icons.Default.TrendingUp
     )
 
+    data object Body : Screen(
+        route = "body",
+        titleRu = "Замеры",
+        icon = Icons.AutoMirrored.Filled.List
+    )
+
     data object Export : Screen(
         route = "export",
         titleRu = "Экспорт",
@@ -53,6 +59,7 @@ sealed class Screen(
             Calendar,
             History,
             Analytics,
+            Body,
             Export
         )
     }

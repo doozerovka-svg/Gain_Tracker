@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppDatabase } from '../db';
-import type { Category, Exercise, ProgressConfig, WorkoutSessionWithSets } from '../types';
+import type { Category, Exercise, ProgressConfig, WorkoutSessionWithSets, SetType } from '../types';
 import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
+import { PlateCalculatorModal } from './PlateCalculatorModal';
 import { 
   Play, CheckCircle2, PlusCircle, 
   Sparkles, Pause, SkipForward, Trash2, Timer, Zap,
-  Plus, Search, X
+  Plus, Search, X, ArrowLeftRight, Disc
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -20,7 +21,6 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [categories] = useState<Category[]>(() => AppDatabase.getCategories());
   const [exercises, setExercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
   const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => {
-    // Priority: last set in active session > last used exercise from history > first exercise
     const active = AppDatabase.getActiveSession();
     const lastSetInActive = active?.sets && active.sets.length > 0 ? active.sets[active.sets.length - 1] : null;
     if (lastSetInActive) return lastSetInActive.exerciseId;
@@ -37,6 +37,8 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [sortMode, setSortMode] = useState<SortMode>('BY_CATEGORY');
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState<boolean>(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
+  const [isPlateCalcOpen, setIsPlateCalcOpen] = useState<boolean>(false);
+  const [isQuickSwapOpen, setIsQuickSwapOpen] = useState<boolean>(false);
 
   // New exercise form
   const [newExName, setNewExName] = useState<string>('');
@@ -50,6 +52,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [weightKg, setWeightKg] = useState<number>(80);
   const [reps, setReps] = useState<number>(8);
   const [rir, setRir] = useState<number>(2);
+  const [selectedSetType, setSelectedSetType] = useState<SetType>('NORMAL');
 
   // Rest timer
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -201,6 +204,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
       weightKg,
       reps,
       rir,
+      setType: selectedSetType,
       timestamp: Date.now(),
       isCompleted: true,
     });
@@ -215,7 +219,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     setIsTimerRunning(true);
     setIsTimerPaused(false);
 
-    showToast(`Подход #${setNumber} зафиксирован!`);
+    showToast(`Подход #${setNumber} (${selectedSetType === 'WARMUP' ? 'Разминка' : selectedSetType === 'DROP_SET' ? 'Дропсет' : selectedSetType === 'FAILURE' ? 'Отказ' : 'Обычный'}) зафиксирован!`);
   };
 
   const handleDeleteSet = (setId: number) => {
@@ -223,6 +227,12 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     setActiveSession(AppDatabase.getActiveSession());
     onRefresh();
     showToast('Подход удален');
+  };
+
+  const handleQuickSwap = (newExId: number) => {
+    setSelectedExerciseId(newExId);
+    setIsQuickSwapOpen(false);
+    showToast('Упражнение заменено на лету!');
   };
 
   const handleCompleteWorkout = () => {
@@ -240,7 +250,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   };
 
   const currentExerciseSets = activeSession?.sets.filter((s) => s.exerciseId === selectedExerciseId) || [];
-  const totalVolume = activeSession?.sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0) || 0;
+  const totalVolume = activeSession?.sets.filter((s) => s.setType !== 'WARMUP').reduce((sum, s) => sum + s.weightKg * s.reps, 0) || 0;
   const totalSets = activeSession?.sets.length || 0;
 
   // Group all completed sets of the active workout by exercise
@@ -254,7 +264,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     });
     return Array.from(map.entries()).map(([exId, exSets]) => {
       const ex = exercises.find((e) => e.id === exId);
-      const volume = exSets.reduce((sum, s) => sum + s.weightKg * s.reps, 0);
+      const volume = exSets.filter((s) => s.setType !== 'WARMUP').reduce((sum, s) => sum + s.weightKg * s.reps, 0);
       const maxWeight = Math.max(...exSets.map((s) => s.weightKg), 0);
       return {
         exerciseId: exId,
@@ -275,6 +285,13 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     { value: 3, label: '3', desc: 'Запас', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
     { value: 4, label: '4', desc: 'Легко', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
     { value: 5, label: '5+', desc: 'Разминка', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' },
+  ];
+
+  const setTypeOptions: { value: SetType; label: string; tag: string; color: string }[] = [
+    { value: 'NORMAL', label: 'Обычный', tag: 'О', color: 'bg-blue-600/20 text-blue-300 border-blue-500/50' },
+    { value: 'WARMUP', label: 'Разминка', tag: 'Р', color: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50' },
+    { value: 'DROP_SET', label: 'Дропсет', tag: 'Д', color: 'bg-orange-600/20 text-orange-300 border-orange-500/50' },
+    { value: 'FAILURE', label: 'Отказ', tag: '!', color: 'bg-red-600/20 text-red-300 border-red-500/50' },
   ];
 
   return (
@@ -338,7 +355,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         </div>
       </div>
 
-      {/* 2. Compact Exercise Selector */}
+      {/* 2. Compact Exercise Selector with Quick Swap */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2 shadow-sm">
         <button
           onClick={() => setIsExercisePickerOpen(true)}
@@ -348,6 +365,14 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
             {selectedExercise?.name} {selectedExercise?.isBodyweight ? '(Свой вес)' : ''}
           </span>
           <span className="text-[11px] text-blue-400 font-bold shrink-0">Сменить</span>
+        </button>
+
+        <button
+          onClick={() => setIsQuickSwapOpen(true)}
+          className="touch-target h-9 px-2.5 bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 border border-slate-700 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition"
+          title="Быстрая замена тренажера"
+        >
+          <ArrowLeftRight size={14} />
         </button>
 
         <button
@@ -385,7 +410,16 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 space-y-1.5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             <span>Вес</span>
-            <span className="text-white font-extrabold text-xs">{weightKg} кг</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsPlateCalcOpen(true)}
+                className="p-1 text-blue-400 hover:text-white bg-blue-950/60 hover:bg-blue-600 rounded border border-blue-500/40 transition"
+                title="Калькулятор блинов"
+              >
+                <Disc size={13} />
+              </button>
+              <span className="text-white font-extrabold text-xs">{weightKg} кг</span>
+            </div>
           </div>
 
           {/* Stepper */}
@@ -489,6 +523,29 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         </div>
       </div>
 
+      {/* 4b. Set Type Selector (Normal, Warmup, Dropset, Failure) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1.5 shadow-sm">
+        <div className="flex items-center justify-between text-[11px] px-1 font-bold text-slate-400 uppercase">
+          <span>Тип подхода</span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1.5">
+          {setTypeOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSelectedSetType(opt.value)}
+              className={`touch-target h-8 rounded-lg border text-xs font-bold transition flex items-center justify-center ${
+                selectedSetType === opt.value
+                  ? `${opt.color} ring-2 ring-blue-400`
+                  : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 5. Main Action Button (>=48px touch target) */}
       <button
         onClick={handleSaveSet}
@@ -554,30 +611,89 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
 
                 {/* Sets Grid / Chips */}
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {group.sets.map((set) => (
-                    <div
-                      key={set.id}
-                      className="bg-slate-950 border border-slate-800/90 px-2.5 py-1 rounded-lg flex items-center gap-2 text-xs"
-                    >
-                      <span className="font-extrabold text-blue-400">#{set.setNumber}</span>
-                      <span className="font-bold text-white">{set.weightKg} кг × {set.reps}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-slate-900 border border-slate-700 text-slate-300 rounded font-medium">
-                        RIR {set.rir}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteSet(set.id)}
-                        className="text-slate-500 hover:text-red-400 p-0.5"
-                        title="Удалить подход"
+                  {group.sets.map((set) => {
+                    const tag = set.setType === 'WARMUP' ? 'Р' : set.setType === 'DROP_SET' ? 'Д' : set.setType === 'FAILURE' ? '!' : '';
+                    const tagColor = set.setType === 'WARMUP' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : set.setType === 'DROP_SET' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' : 'bg-red-500/20 text-red-400 border-red-500/40';
+                    return (
+                      <div
+                        key={set.id}
+                        className="bg-slate-950 border border-slate-800/90 px-2.5 py-1 rounded-lg flex items-center gap-2 text-xs"
                       >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
+                        {tag && (
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-black border ${tagColor}`}>
+                            {tag}
+                          </span>
+                        )}
+                        <span className="font-extrabold text-blue-400">#{set.setNumber}</span>
+                        <span className="font-bold text-white">{set.weightKg} кг × {set.reps}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-900 border border-slate-700 text-slate-300 rounded font-medium">
+                          RIR {set.rir}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteSet(set.id)}
+                          className="text-slate-500 hover:text-red-400 p-0.5"
+                          title="Удалить подход"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* ================= MODAL: QUICK SWAP EXERCISE ================= */}
+      {isQuickSwapOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <ArrowLeftRight size={16} className="text-blue-400" />
+                Быстрая замена тренажера
+              </h3>
+              <button onClick={() => setIsQuickSwapOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-3 space-y-2 overflow-y-auto">
+              <p className="text-xs text-slate-400">
+                Тренажер занят? Выберите альтернативу для той же группы мышц без потери прогресса:
+              </p>
+              {exercises
+                .filter((e) => e.id !== selectedExerciseId && (selectedExercise ? e.categoryId === selectedExercise.categoryId : true))
+                .map((ex) => (
+                  <button
+                    key={ex.id}
+                    onClick={() => handleQuickSwap(ex.id)}
+                    className="w-full text-left p-2.5 bg-slate-950 hover:bg-blue-950/40 border border-slate-800 hover:border-blue-500/40 rounded-xl transition flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-white">{ex.name}</div>
+                      <div className="text-[10px] text-slate-400">{ex.isBodyweight ? 'Свой вес' : 'Со снарядом'}</div>
+                    </div>
+                    <ArrowLeftRight size={14} className="text-blue-400" />
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: PLATE CALCULATOR ================= */}
+      {isPlateCalcOpen && (
+        <PlateCalculatorModal
+          isOpen={isPlateCalcOpen}
+          initialWeight={weightKg}
+          onClose={() => setIsPlateCalcOpen(false)}
+          onApplyWeight={(w) => {
+            setWeightKg(w);
+            setIsPlateCalcOpen(false);
+          }}
+        />
       )}
 
       {/* ================= MODAL: EXERCISE PICKER & MUSCLE SORT ================= */}

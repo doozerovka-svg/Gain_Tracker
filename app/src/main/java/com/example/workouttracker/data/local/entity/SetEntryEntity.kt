@@ -36,6 +36,8 @@ data class SetEntryEntity(
     val weightKg: Double,
     val reps: Int,
     val rir: Int,
+    val setType: String = com.example.workouttracker.domain.model.SetType.NORMAL.name,
+    val superSetId: Long? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val isCompleted: Boolean = true
 ) {
@@ -47,6 +49,9 @@ data class SetEntryEntity(
         weightKg = weightKg,
         reps = reps,
         rir = rir,
+        setType = runCatching { com.example.workouttracker.domain.model.SetType.valueOf(setType) }
+            .getOrDefault(com.example.workouttracker.domain.model.SetType.NORMAL),
+        superSetId = superSetId,
         timestamp = timestamp,
         isCompleted = isCompleted
     )
@@ -60,6 +65,8 @@ data class SetEntryEntity(
             weightKg = domain.weightKg,
             reps = domain.reps,
             rir = domain.rir,
+            setType = domain.setType.name,
+            superSetId = domain.superSetId,
             timestamp = domain.timestamp,
             isCompleted = domain.isCompleted
         )

@@ -28,6 +28,10 @@ class WorkoutApplication : Application() {
         )
     }
 
+    val bodyMeasurementDao by lazy {
+        database.bodyMeasurementDao()
+    }
+
     override fun onCreate() {
         super.onCreate()
     }

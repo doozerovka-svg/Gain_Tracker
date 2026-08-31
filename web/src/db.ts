@@ -1,4 +1,4 @@
-import type { Category, Exercise, ProgressConfig, SetEntry, WorkoutSession, WorkoutSessionWithSets } from './types';
+import type { Category, Exercise, ProgressConfig, SetEntry, WorkoutSession, WorkoutSessionWithSets, BodyMeasurement } from './types';
 
 const STORAGE_KEYS = {
   CATEGORIES: 'wt_categories',
@@ -282,6 +282,75 @@ export class AppDatabase {
     return null;
   }
 
+  static getBodyMeasurements(): BodyMeasurement[] {
+    const raw = localStorage.getItem('wt_body_measurements');
+    if (!raw) return [];
+    try {
+      const list: BodyMeasurement[] = JSON.parse(raw);
+      return list.sort((a, b) => b.date - a.date);
+    } catch {
+      return [];
+    }
+  }
+
+  static addBodyMeasurement(measurement: Omit<BodyMeasurement, 'id'>): BodyMeasurement {
+    const list = this.getBodyMeasurements();
+    const newId = list.length > 0 ? Math.max(...list.map((m) => m.id)) + 1 : 1;
+    const item: BodyMeasurement = { ...measurement, id: newId };
+    list.unshift(item);
+    localStorage.setItem('wt_body_measurements', JSON.stringify(list));
+    return item;
+  }
+
+  static deleteBodyMeasurement(id: number) {
+    let list = this.getBodyMeasurements();
+    list = list.filter((m) => m.id !== id);
+    localStorage.setItem('wt_body_measurements', JSON.stringify(list));
+  }
+
+  static exportFullBackupJson(): string {
+    const backup = {
+      version: 2,
+      timestamp: Date.now(),
+      categories: this.getCategories(),
+      exercises: this.getExercises(),
+      sessions: this.getSessions(),
+      sets: this.getSets(),
+      bodyMeasurements: this.getBodyMeasurements(),
+    };
+    return JSON.stringify(backup, null, 2);
+  }
+
+  static importFullBackupJson(jsonString: string): { success: boolean; count: number; error?: string } {
+    try {
+      const data = JSON.parse(jsonString);
+      let count = 0;
+      if (data.categories) {
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+        count += data.categories.length;
+      }
+      if (data.exercises) {
+        localStorage.setItem(STORAGE_KEYS.EXERCISES, JSON.stringify(data.exercises));
+        count += data.exercises.length;
+      }
+      if (data.sessions) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(data.sessions));
+        count += data.sessions.length;
+      }
+      if (data.sets) {
+        localStorage.setItem(STORAGE_KEYS.SETS, JSON.stringify(data.sets));
+        count += data.sets.length;
+      }
+      if (data.bodyMeasurements) {
+        localStorage.setItem('wt_body_measurements', JSON.stringify(data.bodyMeasurements));
+        count += data.bodyMeasurements.length;
+      }
+      return { success: true, count };
+    } catch (e) {
+      return { success: false, count: 0, error: (e as Error).message };
+    }
+  }
+
   static cloneSession(sourceSessionId: number, targetDate: number): number {
     const sourceSession = this.getSessions().find((s) => s.id === sourceSessionId);
     if (!sourceSession) throw new Error('Исходная сессия не найдена');
@@ -299,6 +368,7 @@ export class AppDatabase {
         weightKg: lastSet ? lastSet.weightKg : srcSet.weightKg,
         reps: lastSet ? lastSet.reps : srcSet.reps,
         rir: 2,
+        setType: 'NORMAL',
         timestamp: targetDate,
         isCompleted: false,
       });
