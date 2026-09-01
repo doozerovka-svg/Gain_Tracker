@@ -52,6 +52,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import com.example.workouttracker.domain.model.SetType
 import com.example.workouttracker.presentation.components.PlateCalculatorDialog
+import com.example.workouttracker.presentation.components.RotarySideWheelPicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -285,6 +286,7 @@ private fun CompactWorkoutContent(
     val setsForActiveExercise = activeExercise?.let { uiState.exerciseSetsMap[it.id] } ?: emptyList()
     val nextSetNumber = (setsForActiveExercise.maxOfOrNull { it.setNumber } ?: 0) + 1
     val timerState = uiState.timerState
+    var activeWheelField by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -865,55 +867,110 @@ private fun CompactWorkoutContent(
 
                                         Spacer(modifier = Modifier.width(8.dp))
 
-                                        // Weight Input
-                                        OutlinedTextField(
-                                            value = uiState.rawWeightString,
-                                            onValueChange = onUpdateRawWeight,
-                                            modifier = Modifier.width(76.dp).height(52.dp),
-                                            textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold),
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            singleLine = true,
-                                            placeholder = { Text("КГ", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                        // Weight trigger
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (activeWheelField == "weight") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                                            border = if (activeWheelField == "weight") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                                            modifier = Modifier
+                                                .width(76.dp)
+                                                .height(46.dp)
+                                                .clickable { activeWheelField = if (activeWheelField == "weight") null else "weight" }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = String.format(Locale.US, "%.1f", uiState.inputWeightKg),
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Black,
+                                                        fontSize = 15.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                )
+                                                Text(
+                                                    text = " кг",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 10.sp,
+                                                        color = MaterialTheme.colorScheme.outline
+                                                    )
+                                                )
+                                            }
+                                        }
                                         
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("×", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                                         Spacer(modifier = Modifier.width(4.dp))
 
-                                        // Reps Input
-                                        var repsText by remember(uiState.inputReps) { mutableStateOf(if(uiState.inputReps > 0) uiState.inputReps.toString() else "") }
-                                        OutlinedTextField(
-                                            value = repsText,
-                                            onValueChange = { 
-                                                repsText = it
-                                                onSetReps(it.toIntOrNull() ?: 0) 
-                                            },
-                                            modifier = Modifier.width(64.dp).height(52.dp),
-                                            textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold),
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            singleLine = true,
-                                            placeholder = { Text("ПОВТ", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                        // Reps trigger
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (activeWheelField == "reps") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                                            border = if (activeWheelField == "reps") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                                            modifier = Modifier
+                                                .width(64.dp)
+                                                .height(46.dp)
+                                                .clickable { activeWheelField = if (activeWheelField == "reps") null else "reps" }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = "${uiState.inputReps}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Black,
+                                                        fontSize = 15.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                )
+                                                Text(
+                                                    text = " п.",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 10.sp,
+                                                        color = MaterialTheme.colorScheme.outline
+                                                    )
+                                                )
+                                            }
+                                        }
 
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
 
-                                        // RIR Input
-                                        var rirText by remember(uiState.inputRir) { mutableStateOf(uiState.inputRir.toString()) }
-                                        OutlinedTextField(
-                                            value = rirText,
-                                            onValueChange = { 
-                                                rirText = it
-                                                onSetRir(it.toIntOrNull() ?: 0) 
-                                            },
-                                            modifier = Modifier.width(60.dp).height(52.dp),
-                                            textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Bold),
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            singleLine = true,
-                                            label = { Text("RIR", fontSize = 9.sp) },
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                        // RIR trigger
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (activeWheelField == "rir") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                                            border = if (activeWheelField == "rir") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                                            modifier = Modifier
+                                                .width(58.dp)
+                                                .height(46.dp)
+                                                .clickable { activeWheelField = if (activeWheelField == "rir") null else "rir" }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = "${uiState.inputRir}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Black,
+                                                        fontSize = 15.sp,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                )
+                                                Text(
+                                                    text = " RIR",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 9.sp,
+                                                        color = MaterialTheme.colorScheme.outline
+                                                    )
+                                                )
+                                            }
+                                        }
 
                                         Spacer(modifier = Modifier.weight(1f))
 
@@ -928,6 +985,49 @@ private fun CompactWorkoutContent(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Сохранить",
                                                 tint = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+
+                                    // 3D Rotary Side-Wheel Picker
+                                    AnimatedVisibility(
+                                        visible = activeWheelField != null,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
+                                        when (activeWheelField) {
+                                            "weight" -> RotarySideWheelPicker(
+                                                value = uiState.inputWeightKg,
+                                                onValueChange = { onSetWeight(it) },
+                                                min = 0.0,
+                                                max = 500.0,
+                                                step = if (uiState.activeExercise?.isBodyweight == true) 1.25 else 0.5,
+                                                label = "Регулировка веса",
+                                                unit = "кг",
+                                                quickSteps = listOf(-5.0, -2.5, 2.5, 5.0),
+                                                onClose = { activeWheelField = null }
+                                            )
+                                            "reps" -> RotarySideWheelPicker(
+                                                value = uiState.inputReps.toDouble(),
+                                                onValueChange = { onSetReps(it.toInt()) },
+                                                min = 1.0,
+                                                max = 100.0,
+                                                step = 1.0,
+                                                label = "Регулировка повторений",
+                                                unit = "повт",
+                                                quickSteps = listOf(-2.0, -1.0, 1.0, 2.0),
+                                                onClose = { activeWheelField = null }
+                                            )
+                                            "rir" -> RotarySideWheelPicker(
+                                                value = uiState.inputRir.toDouble(),
+                                                onValueChange = { onSetRir(it.toInt()) },
+                                                min = 0.0,
+                                                max = 5.0,
+                                                step = 1.0,
+                                                label = "Запас сил (RIR)",
+                                                unit = "RIR",
+                                                quickSteps = listOf(-1.0, 1.0),
+                                                onClose = { activeWheelField = null }
                                             )
                                         }
                                     }

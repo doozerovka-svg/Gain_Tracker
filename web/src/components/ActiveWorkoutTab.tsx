@@ -4,6 +4,7 @@ import type { Category, Exercise, ProgressConfig, WorkoutSessionWithSets, SetTyp
 import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
 import { PlateCalculatorModal } from './PlateCalculatorModal';
+import { RotarySideWheelPicker } from './RotarySideWheelPicker';
 import { 
   Play, CheckCircle2, 
   Sparkles, Pause, SkipForward, Trash2, Timer, Zap,
@@ -53,6 +54,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
   const [reps, setReps] = useState<number>(8);
   const [rir, setRir] = useState<number>(2);
   const [selectedSetType, setSelectedSetType] = useState<SetType>('NORMAL');
+  const [activeWheel, setActiveWheel] = useState<'weight' | 'reps' | 'rir' | null>(null);
 
   // Rest timer
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -528,42 +530,103 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
                       </button>
 
                       <div className="flex flex-1 items-center gap-1.5">
-                        <div className="relative w-16 shrink-0">
-                          <input
-                            type="number"
-                            value={weightKg}
-                            onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none pr-3"
-                          />
-                          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-neutral-500">кг</span>
+                        {/* Weight trigger */}
+                        <div 
+                          onClick={() => setActiveWheel(activeWheel === 'weight' ? null : 'weight')}
+                          className={`relative w-16 shrink-0 cursor-pointer rounded-lg border p-1 text-center transition ${
+                            activeWheel === 'weight'
+                              ? 'border-sky-400 bg-sky-950/60 ring-2 ring-sky-400/40'
+                              : 'border-neutral-700 bg-neutral-950 hover:border-neutral-500'
+                          }`}
+                          title="Нажмите, чтобы настроить колесом"
+                        >
+                          <span className="text-sm font-black text-white">{weightKg}</span>
+                          <span className="text-[9px] font-bold text-neutral-500 ml-0.5">кг</span>
                         </div>
+
                         <span className="text-neutral-500 text-xs font-black">×</span>
-                        <div className="relative w-14 shrink-0">
-                          <input
-                            type="number"
-                            value={reps}
-                            onChange={(e) => setReps(parseInt(e.target.value) || 0)}
-                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none pr-3"
-                          />
-                          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-neutral-500">п.</span>
+
+                        {/* Reps trigger */}
+                        <div 
+                          onClick={() => setActiveWheel(activeWheel === 'reps' ? null : 'reps')}
+                          className={`relative w-14 shrink-0 cursor-pointer rounded-lg border p-1 text-center transition ${
+                            activeWheel === 'reps'
+                              ? 'border-sky-400 bg-sky-950/60 ring-2 ring-sky-400/40'
+                              : 'border-neutral-700 bg-neutral-950 hover:border-neutral-500'
+                          }`}
+                          title="Нажмите, чтобы настроить колесом"
+                        >
+                          <span className="text-sm font-black text-white">{reps}</span>
+                          <span className="text-[9px] font-bold text-neutral-500 ml-0.5">п.</span>
                         </div>
-                        <div className="relative w-14 shrink-0">
-                          <input
-                            type="number"
-                            value={rir}
-                            onChange={(e) => setRir(parseInt(e.target.value) || 0)}
-                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-sky-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
-                          />
-                          <span className="absolute top-0 left-1/2 -translate-x-1/2 -mt-1.5 px-0.5 bg-neutral-900 text-[8px] font-bold text-neutral-500">RIR</span>
+
+                        {/* RIR trigger */}
+                        <div 
+                          onClick={() => setActiveWheel(activeWheel === 'rir' ? null : 'rir')}
+                          className={`relative w-14 shrink-0 cursor-pointer rounded-lg border p-1 text-center transition ${
+                            activeWheel === 'rir'
+                              ? 'border-sky-400 bg-sky-950/60 ring-2 ring-sky-400/40'
+                              : 'border-neutral-700 bg-neutral-950 hover:border-neutral-500'
+                          }`}
+                          title="Нажмите, чтобы настроить колесом"
+                        >
+                          <span className="text-sm font-black text-sky-400">{rir}</span>
+                          <span className="text-[8px] font-bold text-neutral-500 ml-0.5">RIR</span>
                         </div>
                       </div>
 
                       <button
                         onClick={handleSaveSet}
                         className="w-10 h-10 shrink-0 bg-sky-600 hover:bg-sky-500 text-white rounded-lg flex items-center justify-center transition active:scale-95 shadow-lg shadow-sky-600/20 ml-1"
+                        title="Зафиксировать подход"
                       >
                         <CheckCircle2 size={18} />
                       </button>
+                    </div>
+                  )}
+
+                  {/* 3D Rotary Side-Wheel Picker (Expands when Weight/Reps/RIR selected) */}
+                  {group.isActive && activeWheel && (
+                    <div className="p-2 border-t border-neutral-800 bg-black/60">
+                      {activeWheel === 'weight' && (
+                        <RotarySideWheelPicker
+                          value={weightKg}
+                          onChange={setWeightKg}
+                          min={0}
+                          max={500}
+                          step={selectedExercise?.isBodyweight ? 1.25 : 0.5}
+                          label="Регулировка веса"
+                          unit="кг"
+                          quickSteps={[-5, -2.5, 2.5, 5]}
+                          onClose={() => setActiveWheel(null)}
+                        />
+                      )}
+                      {activeWheel === 'reps' && (
+                        <RotarySideWheelPicker
+                          value={reps}
+                          onChange={setReps}
+                          min={1}
+                          max={100}
+                          step={1}
+                          label="Регулировка повторений"
+                          unit="повт"
+                          quickSteps={[-2, -1, 1, 2]}
+                          onClose={() => setActiveWheel(null)}
+                        />
+                      )}
+                      {activeWheel === 'rir' && (
+                        <RotarySideWheelPicker
+                          value={rir}
+                          onChange={setRir}
+                          min={0}
+                          max={5}
+                          step={1}
+                          label="Запас сил (RIR)"
+                          unit="RIR"
+                          quickSteps={[-1, 1]}
+                          onClose={() => setActiveWheel(null)}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

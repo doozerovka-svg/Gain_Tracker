@@ -54,6 +54,32 @@ export class AudioNotificationService {
     setTimeout(() => this.playBeep(880, 0.25, 1), 180); // A5
   }
 
+  static playClickTick() {
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.03);
+    } catch {
+      // ignore
+    }
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(8);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   static requestNotificationPermission() {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
