@@ -5,7 +5,7 @@ import { ProgressionEngine } from '../progression';
 import { AudioNotificationService } from '../sound';
 import { PlateCalculatorModal } from './PlateCalculatorModal';
 import { 
-  Play, CheckCircle2, PlusCircle, 
+  Play, CheckCircle2, 
   Sparkles, Pause, SkipForward, Trash2, Timer, Zap,
   Plus, Search, X, ArrowLeftRight, Disc
 } from 'lucide-react';
@@ -155,11 +155,6 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     showToast('Тренировка начата!');
   };
 
-  const handleIncrementWeight = (delta: number) => {
-    const next = Math.max(0, Math.round((weightKg + delta) * 10) / 10);
-    setWeightKg(next);
-  };
-
   const handleCreateExercise = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExName.trim()) return;
@@ -249,19 +244,24 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     showToast('🎉 Тренировка успешно завершена!');
   };
 
-  const currentExerciseSets = activeSession?.sets.filter((s) => s.exerciseId === selectedExerciseId) || [];
   const totalVolume = activeSession?.sets.filter((s) => s.setType !== 'WARMUP').reduce((sum, s) => sum + s.weightKg * s.reps, 0) || 0;
   const totalSets = activeSession?.sets.length || 0;
 
   // Group all completed sets of the active workout by exercise
   const groupedWorkoutSets = useMemo(() => {
-    if (!activeSession || !activeSession.sets) return [];
+    if (!activeSession) return [];
     const map = new Map<number, typeof activeSession.sets>();
-    activeSession.sets.forEach((s) => {
-      const list = map.get(s.exerciseId) || [];
-      list.push(s);
-      map.set(s.exerciseId, list);
-    });
+    
+    // Ensure active exercise is always rendered
+    map.set(selectedExerciseId, []);
+
+    if (activeSession.sets) {
+      activeSession.sets.forEach((s) => {
+        const list = map.get(s.exerciseId) || [];
+        list.push(s);
+        map.set(s.exerciseId, list);
+      });
+    }
     return Array.from(map.entries()).map(([exId, exSets]) => {
       const ex = exercises.find((e) => e.id === exId);
       const volume = exSets.filter((s) => s.setType !== 'WARMUP').reduce((sum, s) => sum + s.weightKg * s.reps, 0);
@@ -278,21 +278,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
     });
   }, [activeSession, exercises, selectedExerciseId]);
 
-  const rirOptions = [
-    { value: 0, label: '0', desc: 'Отказ', color: 'bg-red-500/20 text-red-300 border-red-500/40' },
-    { value: 1, label: '1', desc: 'Предел', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
-    { value: 2, label: '2', desc: 'Рабочий', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
-    { value: 3, label: '3', desc: 'Запас', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
-    { value: 4, label: '4', desc: 'Легко', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
-    { value: 5, label: '5+', desc: 'Разминка', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' },
-  ];
 
-  const setTypeOptions: { value: SetType; label: string; tag: string; color: string }[] = [
-    { value: 'NORMAL', label: 'Обычный', tag: 'О', color: 'bg-blue-600/20 text-blue-300 border-blue-500/50' },
-    { value: 'WARMUP', label: 'Разминка', tag: 'Р', color: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50' },
-    { value: 'DROP_SET', label: 'Дропсет', tag: 'Д', color: 'bg-orange-600/20 text-orange-300 border-orange-500/50' },
-    { value: 'FAILURE', label: 'Отказ', tag: '!', color: 'bg-red-600/20 text-red-300 border-red-500/50' },
-  ];
 
   return (
     <div className="space-y-2.5 max-w-xl mx-auto pb-16">
@@ -376,11 +362,11 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         </button>
 
         <button
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="touch-target h-9 px-3 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition"
+          onClick={() => setIsPlateCalcOpen(true)}
+          className="touch-target h-9 px-2.5 bg-sky-950/60 hover:bg-sky-600 text-sky-400 hover:text-white border border-sky-500/40 rounded-lg flex items-center gap-1 shrink-0 transition"
+          title="Калькулятор блинов"
         >
-          <Plus size={14} />
-          <span>Новое</span>
+          <Disc size={15} />
         </button>
       </div>
 
@@ -404,154 +390,7 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
         </div>
       )}
 
-      {/* 3. Two-Column Input Grid (Weight on Left + Reps on Right) */}
-      <div className="grid grid-cols-2 gap-2.5">
-        {/* Weight Column */}
-        <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 space-y-2 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-            <span>ВЕС (КГ)</span>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setIsPlateCalcOpen(true)}
-                className="p-1.5 text-sky-400 hover:text-white bg-sky-950/60 hover:bg-sky-600 rounded-lg border border-sky-500/40 transition"
-                title="Калькулятор блинов"
-              >
-                <Disc size={15} />
-              </button>
-            </div>
-          </div>
 
-          {/* Stepper Display (28px Bold) */}
-          <div className="flex items-center justify-between gap-1 bg-black border border-neutral-800 rounded-xl p-1.5">
-            <button
-              onClick={() => handleIncrementWeight(-2.5)}
-              className="touch-target w-11 h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-lg flex items-center justify-center text-xs transition active:scale-95"
-            >
-              -2.5
-            </button>
-            <span className="font-black text-2xl text-white tracking-tight">{weightKg}</span>
-            <button
-              onClick={() => handleIncrementWeight(2.5)}
-              className="touch-target w-11 h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-lg flex items-center justify-center text-xs transition active:scale-95"
-            >
-              +2.5
-            </button>
-          </div>
-
-          {/* Quick Increments */}
-          <div className="grid grid-cols-4 gap-1 pt-0.5">
-            {[1.25, 2.5, 5, 10].map((inc) => (
-              <button
-                key={inc}
-                onClick={() => handleIncrementWeight(inc)}
-                className="touch-target h-8 bg-neutral-900 hover:bg-sky-600 hover:text-white border border-neutral-800 rounded-lg text-xs font-bold text-neutral-300 transition"
-              >
-                +{inc}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Reps Column */}
-        <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 space-y-2 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-            <span>ПОВТОРЕНИЯ</span>
-          </div>
-
-          {/* Stepper Display (28px Bold) */}
-          <div className="flex items-center justify-between gap-1 bg-black border border-neutral-800 rounded-xl p-1.5">
-            <button
-              onClick={() => setReps(Math.max(1, reps - 1))}
-              className="touch-target w-11 h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-lg flex items-center justify-center text-base transition active:scale-95"
-            >
-              -1
-            </button>
-            <span className="font-black text-2xl text-white tracking-tight">{reps}</span>
-            <button
-              onClick={() => setReps(reps + 1)}
-              className="touch-target w-11 h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-black rounded-lg flex items-center justify-center text-base transition active:scale-95"
-            >
-              +1
-            </button>
-          </div>
-
-          {/* Quick Reps */}
-          <div className="grid grid-cols-4 gap-1 pt-0.5">
-            {[6, 8, 10, 12].map((r) => (
-              <button
-                key={r}
-                onClick={() => setReps(r)}
-                className={`touch-target h-8 rounded-lg text-xs font-bold transition ${
-                  reps === r
-                    ? 'bg-sky-600 text-white shadow-md'
-                    : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800 border border-neutral-800'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Horizontal RIR Segment Selector (0..5+) */}
-      <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 space-y-2 shadow-sm">
-        <div className="flex items-center justify-between text-[11px] px-0.5 font-bold text-neutral-400 uppercase">
-          <span>RIR (запас сил до отказа)</span>
-          <span className="text-xs text-sky-400 font-extrabold">
-            {rir === 0 ? '0: Отказ' : rir === 1 ? '1: Предел' : rir === 2 ? '2: Рабочий' : rir === 3 ? '3: Запас' : rir === 4 ? '4: Легко' : '5+: Разминка'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-6 gap-1.5">
-          {rirOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setRir(opt.value)}
-              className={`touch-target h-10 rounded-xl border flex flex-col items-center justify-center transition ${
-                rir === opt.value
-                  ? `${opt.color} font-black ring-2 ring-sky-400 scale-[1.02]`
-                  : 'bg-black border-neutral-800 text-neutral-400 hover:text-neutral-200'
-              }`}
-            >
-              <span className="text-sm font-black leading-none">{opt.label}</span>
-              <span className="text-[9px] font-medium leading-tight mt-0.5 opacity-80">{opt.desc}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4b. Set Type Selector (Normal, Warmup, Dropset, Failure) */}
-      <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 space-y-2 shadow-sm">
-        <div className="flex items-center justify-between text-[11px] px-0.5 font-bold text-neutral-400 uppercase">
-          <span>Тип подхода</span>
-        </div>
-
-        <div className="grid grid-cols-4 gap-1.5">
-          {setTypeOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSelectedSetType(opt.value)}
-              className={`touch-target h-9 rounded-xl border text-xs font-bold transition flex items-center justify-center ${
-                selectedSetType === opt.value
-                  ? `${opt.color} ring-2 ring-sky-400`
-                  : 'bg-black border-neutral-800 text-neutral-400 hover:text-neutral-200'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Main Action Button (52px touch target) */}
-      <button
-        onClick={handleSaveSet}
-        className="touch-target w-full h-13 py-3.5 bg-sky-600 hover:bg-sky-500 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-600/30 flex items-center justify-center gap-2 transition active:scale-[0.99]"
-      >
-        <PlusCircle size={20} />
-        <span>Зафиксировать подход #{currentExerciseSets.length + 1}</span>
-      </button>
 
       {/* 6. Completed Sets Grouped by Exercise (Gym Luxury Table) */}
       {groupedWorkoutSets.length > 0 && (
@@ -665,6 +504,68 @@ export const ActiveWorkoutTab: React.FC<Props> = ({ onRefresh }) => {
                       );
                     })}
                   </div>
+                  
+                  {/* Inline Input Row */}
+                  {group.isActive && (
+                    <div className="border-t border-neutral-800 bg-neutral-900/40 p-2 flex items-center justify-between gap-1.5">
+                      <button
+                        onClick={() => {
+                          const order: SetType[] = ['NORMAL', 'WARMUP', 'DROP_SET', 'FAILURE'];
+                          const nextIdx = (order.indexOf(selectedSetType) + 1) % order.length;
+                          setSelectedSetType(order[nextIdx]);
+                        }}
+                        className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-black transition ${
+                          selectedSetType === 'WARMUP' ? 'bg-emerald-500 text-emerald-950' :
+                          selectedSetType === 'DROP_SET' ? 'bg-amber-500 text-amber-950' :
+                          selectedSetType === 'FAILURE' ? 'bg-red-500 text-red-950' :
+                          'bg-sky-600 text-white'
+                        }`}
+                      >
+                        {selectedSetType === 'WARMUP' ? 'W' :
+                         selectedSetType === 'DROP_SET' ? 'D' :
+                         selectedSetType === 'FAILURE' ? 'F' :
+                         group.sets.length + 1}
+                      </button>
+
+                      <div className="flex flex-1 items-center gap-1.5">
+                        <div className="relative w-16 shrink-0">
+                          <input
+                            type="number"
+                            value={weightKg}
+                            onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
+                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none pr-3"
+                          />
+                          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-neutral-500">кг</span>
+                        </div>
+                        <span className="text-neutral-500 text-xs font-black">×</span>
+                        <div className="relative w-14 shrink-0">
+                          <input
+                            type="number"
+                            value={reps}
+                            onChange={(e) => setReps(parseInt(e.target.value) || 0)}
+                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none pr-3"
+                          />
+                          <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-neutral-500">п.</span>
+                        </div>
+                        <div className="relative w-14 shrink-0">
+                          <input
+                            type="number"
+                            value={rir}
+                            onChange={(e) => setRir(parseInt(e.target.value) || 0)}
+                            className="w-full h-10 bg-neutral-950 border border-neutral-700 rounded-lg text-center text-sm font-bold text-sky-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
+                          />
+                          <span className="absolute top-0 left-1/2 -translate-x-1/2 -mt-1.5 px-0.5 bg-neutral-900 text-[8px] font-bold text-neutral-500">RIR</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleSaveSet}
+                        className="w-10 h-10 shrink-0 bg-sky-600 hover:bg-sky-500 text-white rounded-lg flex items-center justify-center transition active:scale-95 shadow-lg shadow-sky-600/20 ml-1"
+                      >
+                        <CheckCircle2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
