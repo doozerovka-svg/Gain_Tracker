@@ -1,13 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { AppDatabase } from '../db';
 import type { WorkoutSessionWithSets, Exercise } from '../types';
-import { ChevronDown, ChevronUp, Trash2, Calendar, Dumbbell, X } from 'lucide-react';
+import { CalendarTab } from './CalendarTab';
+import { ChevronDown, ChevronUp, Trash2, Calendar as CalendarIcon, Dumbbell, X, List } from 'lucide-react';
 
 interface Props {
   onRefresh: () => void;
+  onOpenActiveTab?: () => void;
 }
 
-export const HistoryTab: React.FC<Props> = ({ onRefresh }) => {
+export const HistoryTab: React.FC<Props> = ({ onRefresh, onOpenActiveTab = () => {} }) => {
+  const [subTab, setSubTab] = useState<'list' | 'calendar'>('list');
   const [sessions, setSessions] = useState<WorkoutSessionWithSets[]>(() =>
     AppDatabase.getAllSessionsWithSets()
       .filter((s) => s.session.status === 'COMPLETED')
@@ -41,14 +44,38 @@ export const HistoryTab: React.FC<Props> = ({ onRefresh }) => {
   };
 
   return (
-    <div className="space-y-4 pb-20 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Calendar className="text-blue-400" size={20} />
-          История тренировок
-        </h2>
-        <span className="text-xs text-slate-400">Всего: {sessions.length} сессий</span>
+    <div className="space-y-3 pb-20 max-w-xl mx-auto">
+      {/* Top Segmented Sub-Tabs */}
+      <div className="bg-neutral-900/90 p-1 rounded-xl border border-neutral-800 grid grid-cols-2 gap-1 shadow-sm">
+        <button
+          onClick={() => setSubTab('list')}
+          className={`touch-target py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            subTab === 'list'
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <List size={15} className={subTab === 'list' ? 'text-sky-400' : ''} />
+          <span>Список ({sessions.length})</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('calendar')}
+          className={`touch-target py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            subTab === 'calendar'
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <CalendarIcon size={15} className={subTab === 'calendar' ? 'text-sky-400' : ''} />
+          <span>Календарь</span>
+        </button>
       </div>
+
+      {subTab === 'calendar' ? (
+        <CalendarTab onRefresh={onRefresh} onOpenActiveTab={onOpenActiveTab} />
+      ) : (
+        <div className="space-y-3">
 
       {sessions.length === 0 ? (
         <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8 text-center text-slate-400 space-y-2">
@@ -167,6 +194,8 @@ export const HistoryTab: React.FC<Props> = ({ onRefresh }) => {
             </div>
           );
         })
+      )}
+      </div>
       )}
 
       {/* Delete Confirmation Modal */}

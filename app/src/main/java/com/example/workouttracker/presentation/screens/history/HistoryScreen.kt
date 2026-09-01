@@ -44,43 +44,123 @@ import com.example.workouttracker.domain.model.SetEntry
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import com.example.workouttracker.presentation.screens.calendar.CalendarScreen
+import com.example.workouttracker.presentation.screens.calendar.CalendarViewModel
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 private val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale("ru"))
 
 @Composable
-fun HistoryScreen(viewModel: HistoryViewModel) {
+fun HistoryScreen(
+    viewModel: HistoryViewModel,
+    calendarViewModel: CalendarViewModel? = null
+) {
     val state by viewModel.uiState.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) } // 0: Список, 1: Календарь
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        when {
-            state.isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            state.sessions.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "История тренировок пуста",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            else -> {
-                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-                    Text(
-                        text = "История тренировок",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top Segmented Switch: Список vs Календарь
+            if (calendarViewModel != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(10.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selectedTab == 0) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shadowElevation = if (selectedTab == 0) 2.dp else 0.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = 0 }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Список",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selectedTab == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+                                )
+                            )
+                        }
+                    }
 
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(state.sessions, key = { it.session.id }) { sessionWithSets ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selectedTab == 1) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        shadowElevation = if (selectedTab == 1) 2.dp else 0.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = 1 }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Календарь",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selectedTab == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (selectedTab == 1 && calendarViewModel != null) {
+                CalendarScreen(viewModel = calendarViewModel)
+            } else {
+                when {
+                    state.isLoading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    state.sessions.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "История тренировок пуста",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    else -> {
+                        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+                            Text(
+                                text = "Завершённые тренировки (${state.sessions.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                items(state.sessions, key = { it.session.id }) { sessionWithSets ->
                             val session = sessionWithSets.session
                             val sets = sessionWithSets.sets
                             val isExpanded = state.expandedSessionId == session.id
@@ -199,6 +279,8 @@ fun HistoryScreen(viewModel: HistoryViewModel) {
             }
         }
     }
+}
+}
 
     state.showDeleteConfirmation?.let { sessionId ->
         AlertDialog(

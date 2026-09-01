@@ -2,6 +2,10 @@ package com.example.workouttracker.presentation.navigation
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -54,12 +58,14 @@ fun AppNavHost(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 4.dp
             ) {
                 Screen.bottomNavItems.forEach { screen ->
                     val isSelected = currentRoute == screen.route
                     NavigationBarItem(
                         selected = isSelected,
+                        alwaysShowLabel = true,
                         onClick = {
                             if (currentRoute != screen.route) {
                                 navController.navigate(screen.route) {
@@ -72,10 +78,21 @@ fun AppNavHost(
                             }
                         },
                         icon = {
-                            Icon(imageVector = screen.icon, contentDescription = screen.titleRu)
+                            Icon(
+                                imageVector = screen.icon,
+                                contentDescription = screen.titleRu,
+                                modifier = Modifier.size(22.dp)
+                            )
                         },
                         label = {
-                            Text(text = screen.titleRu)
+                            Text(
+                                text = screen.titleRu,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                maxLines = 1
+                            )
                         }
                     )
                 }
@@ -114,7 +131,16 @@ fun AppNavHost(
                         exerciseRepository = context.exerciseRepository
                     )
                 )
-                HistoryScreen(viewModel = historyViewModel)
+                val calendarViewModel: CalendarViewModel = viewModel(
+                    factory = CalendarViewModelFactory(
+                        workoutRepository = context.workoutRepository,
+                        cloneWorkoutSessionUseCase = CloneWorkoutSessionUseCase(context.workoutRepository)
+                    )
+                )
+                HistoryScreen(
+                    viewModel = historyViewModel,
+                    calendarViewModel = calendarViewModel
+                )
             }
 
             composable(Screen.Analytics.route) {
@@ -124,7 +150,15 @@ fun AppNavHost(
                         exerciseRepository = context.exerciseRepository
                     )
                 )
-                AnalyticsScreen(viewModel = analyticsViewModel)
+                val bodyViewModel: com.example.workouttracker.presentation.screens.body.BodyMeasurementsViewModel = viewModel(
+                    factory = com.example.workouttracker.presentation.screens.body.BodyMeasurementsViewModelFactory(
+                        bodyMeasurementDao = context.bodyMeasurementDao
+                    )
+                )
+                AnalyticsScreen(
+                    viewModel = analyticsViewModel,
+                    bodyViewModel = bodyViewModel
+                )
             }
 
             composable(Screen.Body.route) {

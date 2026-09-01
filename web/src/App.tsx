@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import type { TabType } from './types';
 import { ActiveWorkoutTab } from './components/ActiveWorkoutTab';
-import { CalendarTab } from './components/CalendarTab';
 import { HistoryTab } from './components/HistoryTab';
 import { AnalyticsTab } from './components/AnalyticsTab';
-import { BodyMeasurementsTab } from './components/BodyMeasurementsTab';
 import { ExportTab } from './components/ExportTab';
-import { Dumbbell, Calendar, History, TrendingUp, Ruler, Download, Smartphone } from 'lucide-react';
+import { Dumbbell, History, TrendingUp, MoreHorizontal, Smartphone } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -17,7 +15,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-black text-slate-100 flex flex-col justify-between selection:bg-sky-600 selection:text-white">
       {/* Top App Bar (Pure AMOLED Black) */}
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur border-b border-neutral-900 px-4 py-3 shadow-md">
         <div className="max-w-xl mx-auto flex items-center justify-between">
@@ -50,80 +48,66 @@ export const App: React.FC = () => {
       {/* Main Content View */}
       <main className="flex-1 px-3 sm:px-4 py-4 max-w-xl mx-auto w-full">
         {activeTab === 'active' && <ActiveWorkoutTab onRefresh={handleRefresh} />}
-        {activeTab === 'calendar' && (
-          <CalendarTab
+        {activeTab === 'history' && (
+          <HistoryTab
             key={refreshKey}
             onRefresh={handleRefresh}
             onOpenActiveTab={() => setActiveTab('active')}
           />
         )}
-        {activeTab === 'history' && <HistoryTab key={refreshKey} onRefresh={handleRefresh} />}
-        {activeTab === 'analytics' && <AnalyticsTab key={refreshKey} />}
-        {activeTab === 'body' && <BodyMeasurementsTab key={refreshKey} onRefresh={handleRefresh} />}
+        {activeTab === 'analytics' && <AnalyticsTab key={refreshKey} onRefresh={handleRefresh} />}
         {activeTab === 'export' && <ExportTab key={refreshKey} />}
       </main>
 
-      {/* Bottom Navigation Bar (Pure AMOLED Black Fixed) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/95 backdrop-blur border-t border-neutral-900 px-1 py-1 shadow-2xl">
-        <div className="max-w-xl mx-auto grid grid-cols-6 gap-0.5">
+      {/* Bottom Navigation Bar (4 Spacious Tabs) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/95 backdrop-blur border-t border-neutral-900 px-3 py-1.5 shadow-2xl">
+        <div className="max-w-xl mx-auto grid grid-cols-4 gap-2">
           <button
             onClick={() => setActiveTab('active')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'active' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
+            className={`touch-target flex flex-col items-center justify-center py-2 rounded-xl transition ${
+              activeTab === 'active'
+                ? 'text-sky-400 font-bold bg-sky-950/50 ring-1 ring-sky-500/30'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            <Dumbbell size={18} />
-            <span className="text-[9px] mt-1">Зал</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'calendar' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Calendar size={18} />
-            <span className="text-[9px] mt-1">План</span>
+            <Dumbbell size={20} />
+            <span className="text-xs font-bold mt-1">Тренировка</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'history' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
+            className={`touch-target flex flex-col items-center justify-center py-2 rounded-xl transition ${
+              activeTab === 'history'
+                ? 'text-sky-400 font-bold bg-sky-950/50 ring-1 ring-sky-500/30'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            <History size={18} />
-            <span className="text-[9px] mt-1">История</span>
+            <History size={20} />
+            <span className="text-xs font-bold mt-1">История</span>
           </button>
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'analytics' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
+            className={`touch-target flex flex-col items-center justify-center py-2 rounded-xl transition ${
+              activeTab === 'analytics'
+                ? 'text-sky-400 font-bold bg-sky-950/50 ring-1 ring-sky-500/30'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            <TrendingUp size={18} />
-            <span className="text-[9px] mt-1">Ранги</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('body')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'body' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Ruler size={18} />
-            <span className="text-[9px] mt-1">Замеры</span>
+            <TrendingUp size={20} />
+            <span className="text-xs font-bold mt-1">Прогресс</span>
           </button>
 
           <button
             onClick={() => setActiveTab('export')}
-            className={`touch-target flex flex-col items-center justify-center py-1.5 rounded-xl transition ${
-              activeTab === 'export' ? 'text-sky-400 font-bold bg-sky-950/40' : 'text-neutral-400 hover:text-neutral-200'
+            className={`touch-target flex flex-col items-center justify-center py-2 rounded-xl transition ${
+              activeTab === 'export'
+                ? 'text-sky-400 font-bold bg-sky-950/50 ring-1 ring-sky-500/30'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            <Download size={18} />
-            <span className="text-[9px] mt-1">Экспорт</span>
+            <MoreHorizontal size={20} />
+            <span className="text-xs font-bold mt-1">Ещё</span>
           </button>
         </div>
       </nav>

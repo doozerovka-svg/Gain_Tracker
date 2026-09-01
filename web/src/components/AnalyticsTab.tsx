@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppDatabase } from '../db';
 import type { Exercise } from '../types';
 import { ProgressionEngine } from '../progression';
-import { TrendingUp, Award, Flame, Dumbbell, AlertTriangle } from 'lucide-react';
+import { BodyMeasurementsTab } from './BodyMeasurementsTab';
+import { Award, Flame, Dumbbell, AlertTriangle, BarChart3, Ruler } from 'lucide-react';
 
 interface DataPoint {
   date: number;
@@ -11,7 +12,12 @@ interface DataPoint {
   workingWeight: number;
 }
 
-export const AnalyticsTab: React.FC = () => {
+interface Props {
+  onRefresh?: () => void;
+}
+
+export const AnalyticsTab: React.FC<Props> = ({ onRefresh = () => {} }) => {
+  const [subTab, setSubTab] = useState<'charts' | 'ranks' | 'body'>('charts');
   const [exercises] = useState<Exercise[]>(() => AppDatabase.getExercises());
   const [selectedExerciseId, setSelectedExerciseId] = useState<number>(() => exercises[0]?.id || 1);
   const [formula, setFormula] = useState<'epley' | 'brzycki'>('epley');
@@ -277,159 +283,199 @@ export const AnalyticsTab: React.FC = () => {
   }, [dataPoints]);
 
   return (
-    <div className="space-y-4 pb-20 max-w-xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <TrendingUp className="text-blue-400" size={20} />
-          Аналитика прогресса
-        </h2>
+    <div className="space-y-3 pb-20 max-w-xl mx-auto">
+      {/* Top Segmented Sub-Tabs */}
+      <div className="bg-neutral-900/90 p-1 rounded-xl border border-neutral-800 grid grid-cols-3 gap-1 shadow-sm">
+        <button
+          onClick={() => setSubTab('charts')}
+          className={`touch-target py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            subTab === 'charts'
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <BarChart3 size={15} className={subTab === 'charts' ? 'text-sky-400' : ''} />
+          <span>Графики</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('ranks')}
+          className={`touch-target py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            subTab === 'ranks'
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Award size={15} className={subTab === 'ranks' ? 'text-sky-400' : ''} />
+          <span>Ранги</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab('body')}
+          className={`touch-target py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+            subTab === 'body'
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Ruler size={15} className={subTab === 'body' ? 'text-sky-400' : ''} />
+          <span>Замеры</span>
+        </button>
       </div>
 
-      {/* RPG Strength Rank Card */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950/60 border border-slate-700/70 rounded-2xl p-4 space-y-3 shadow-md">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-3xl">{strengthProfile.rank.emoji}</span>
-            <div>
-              <div className="text-sm font-extrabold text-white flex items-center gap-1.5">
-                <span>Силовой ранг: {strengthProfile.rank.title}</span>
+      {subTab === 'body' ? (
+        <BodyMeasurementsTab onRefresh={onRefresh} />
+      ) : subTab === 'ranks' ? (
+        <div className="space-y-3">
+          {/* RPG Strength Rank Card */}
+          <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-sky-950/40 border border-neutral-800 rounded-2xl p-4 space-y-3.5 shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{strengthProfile.rank.emoji}</span>
+                <div>
+                  <div className="text-sm font-black text-white flex items-center gap-1.5">
+                    <span>Силовой ранг: {strengthProfile.rank.title}</span>
+                  </div>
+                  <div className="text-xs text-neutral-400">{strengthProfile.rank.desc}</div>
+                </div>
               </div>
-              <div className="text-xs text-slate-400">{strengthProfile.rank.desc}</div>
+
+              <div className="px-3 py-1.5 bg-sky-600/20 border border-sky-500/40 rounded-xl text-sky-400 text-xs font-black">
+                {strengthProfile.dotsScore.toFixed(0)} DOTS
+              </div>
+            </div>
+
+            {/* Big 3 stats */}
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-neutral-800 text-center bg-black/40 rounded-xl p-2">
+              <div>
+                <div className="text-[10px] uppercase text-neutral-400 font-bold">Жим</div>
+                <div className="text-xs font-bold text-white">{strengthProfile.bench.toFixed(0)} кг</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-neutral-400 font-bold">Присед</div>
+                <div className="text-xs font-bold text-white">{strengthProfile.squat.toFixed(0)} кг</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-neutral-400 font-bold">Тяга</div>
+                <div className="text-xs font-bold text-white">{strengthProfile.deadlift.toFixed(0)} кг</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-sky-400 font-bold">Сумма</div>
+                <div className="text-xs font-black text-sky-400">{strengthProfile.totalBig3.toFixed(0)} кг</div>
+              </div>
+            </div>
+
+            {strengthProfile.dotsToNext > 0 && (
+              <div className="text-[11px] text-neutral-400 text-right pt-0.5">
+                До следующего ранга: <b className="text-neutral-200">+{strengthProfile.dotsToNext.toFixed(1)}</b> очков DOTS
+              </div>
+            )}
+          </div>
+
+          {/* Deload Periodization Alert Banner */}
+          {deloadAdvice && (
+            <div className="bg-red-950/40 border border-red-500/40 rounded-2xl p-3.5 flex items-start gap-2.5 shadow-sm text-red-200">
+              <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 text-xs">
+                <div className="font-bold text-red-300">Рекомендация: Разгрузочная неделя (Deload)</div>
+                <p className="text-red-200/90 leading-relaxed">{deloadAdvice.reason}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Exercise Selector */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3.5 space-y-2">
+            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block">
+              Выберите упражнение
+            </label>
+            <select
+              value={selectedExerciseId}
+              onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
+              className="w-full bg-black border border-neutral-800 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-sky-500"
+            >
+              {exercises.map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 text-center">
+              <div className="flex justify-center mb-1 text-sky-400">
+                <Award size={18} />
+              </div>
+              <div className="text-base font-black text-white">{maxOneRM.toFixed(1)} <span className="text-[10px] text-neutral-400">кг</span></div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">Макс. 1RM</div>
+            </div>
+
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 text-center">
+              <div className="flex justify-center mb-1 text-amber-400">
+                <Flame size={18} />
+              </div>
+              <div className="text-base font-black text-white">{totalVolume.toFixed(0)} <span className="text-[10px] text-neutral-400">кг</span></div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">Общий объём</div>
+            </div>
+
+            <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3 text-center">
+              <div className="flex justify-center mb-1 text-emerald-400">
+                <Dumbbell size={18} />
+              </div>
+              <div className="text-base font-black text-white">{totalSessionsCount}</div>
+              <div className="text-[10px] text-neutral-400 mt-0.5">Тренировок</div>
             </div>
           </div>
 
-          <div className="px-2.5 py-1 bg-blue-600/30 border border-blue-500/40 rounded-xl text-blue-300 text-xs font-black">
-            {strengthProfile.dotsScore.toFixed(0)} DOTS
-          </div>
-        </div>
+          {/* Chart Section */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                Динамика прогресса
+              </span>
 
-        {/* Big 3 stats */}
-        <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-700/50 text-center">
-          <div>
-            <div className="text-[10px] uppercase text-slate-400 font-bold">Жим</div>
-            <div className="text-xs font-bold text-white">{strengthProfile.bench.toFixed(0)} кг</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-slate-400 font-bold">Присед</div>
-            <div className="text-xs font-bold text-white">{strengthProfile.squat.toFixed(0)} кг</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-slate-400 font-bold">Тяга</div>
-            <div className="text-xs font-bold text-white">{strengthProfile.deadlift.toFixed(0)} кг</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-blue-400 font-bold">Сумма</div>
-            <div className="text-xs font-black text-blue-300">{strengthProfile.totalBig3.toFixed(0)} кг</div>
-          </div>
-        </div>
+              <div className="flex items-center gap-1 bg-black p-0.5 rounded-lg border border-neutral-800 text-xs">
+                <button
+                  onClick={() => setFormula('epley')}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                    formula === 'epley' ? 'bg-sky-600 text-white' : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Эпли
+                </button>
+                <button
+                  onClick={() => setFormula('brzycki')}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition ${
+                    formula === 'brzycki' ? 'bg-sky-600 text-white' : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Бжицки
+                </button>
+              </div>
+            </div>
 
-        {strengthProfile.dotsToNext > 0 && (
-          <div className="text-[11px] text-slate-400 text-right pt-0.5">
-            До следующего ранга: <b className="text-slate-200">+{strengthProfile.dotsToNext.toFixed(1)}</b> очков DOTS
-          </div>
-        )}
-      </div>
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 text-xs text-neutral-300 pt-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 bg-sky-500 rounded-full inline-block" />
+                <span className="text-[11px]">1RM ({formula === 'epley' ? 'Эпли' : 'Бжицки'})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 bg-amber-500 rounded-full inline-block" />
+                <span className="text-[11px]">Рабочий вес</span>
+              </div>
+            </div>
 
-      {/* Deload Periodization Alert Banner */}
-      {deloadAdvice && (
-        <div className="bg-red-950/40 border border-red-500/40 rounded-2xl p-3.5 flex items-start gap-2.5 shadow-sm text-red-200">
-          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
-          <div className="space-y-1 text-xs">
-            <div className="font-bold text-red-300">Рекомендация: Разгрузочная неделя (Deload)</div>
-            <p className="text-red-200/90 leading-relaxed">{deloadAdvice.reason}</p>
+            {/* Canvas */}
+            <div className="w-full h-60 relative">
+              <canvas ref={canvasRef} className="w-full h-full" />
+            </div>
           </div>
         </div>
       )}
-
-      {/* Exercise Selector */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-          Выберите упражнение
-        </label>
-        <select
-          value={selectedExerciseId}
-          onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
-          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-base focus:outline-none focus:border-blue-500"
-        >
-          {exercises.map((ex) => (
-            <option key={ex.id} value={ex.id}>
-              {ex.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-          <div className="flex justify-center mb-1 text-blue-400">
-            <Award size={20} />
-          </div>
-          <div className="text-lg font-extrabold text-white">{maxOneRM.toFixed(1)} <span className="text-xs text-slate-400">кг</span></div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Макс. 1RM</div>
-        </div>
-
-        <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-          <div className="flex justify-center mb-1 text-amber-400">
-            <Flame size={20} />
-          </div>
-          <div className="text-lg font-extrabold text-white">{totalVolume.toFixed(0)} <span className="text-xs text-slate-400">кг</span></div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Общий объём</div>
-        </div>
-
-        <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-          <div className="flex justify-center mb-1 text-emerald-400">
-            <Dumbbell size={20} />
-          </div>
-          <div className="text-lg font-extrabold text-white">{totalSessionsCount}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Тренировок</div>
-        </div>
-      </div>
-
-      {/* Chart Section */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 space-y-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Динамика 1RM и рабочего веса
-          </span>
-
-          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-700 text-xs">
-            <button
-              onClick={() => setFormula('epley')}
-              className={`px-2 py-0.5 rounded font-medium transition ${
-                formula === 'epley' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Эпли
-            </button>
-            <button
-              onClick={() => setFormula('brzycki')}
-              className={`px-2 py-0.5 rounded font-medium transition ${
-                formula === 'brzycki' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Бжицки
-            </button>
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center justify-center gap-6 text-xs text-slate-300 pt-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-blue-500 rounded-full inline-block" />
-            <span>1RM ({formula === 'epley' ? 'Эпли' : 'Бжицки'})</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-amber-500 rounded-full inline-block" />
-            <span>Рабочий вес</span>
-          </div>
-        </div>
-
-        {/* Canvas */}
-        <div className="w-full h-64 relative">
-          <canvas ref={canvasRef} className="w-full h-full" />
-        </div>
-      </div>
     </div>
   );
 };

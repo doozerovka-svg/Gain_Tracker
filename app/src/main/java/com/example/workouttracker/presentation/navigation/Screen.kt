@@ -1,12 +1,10 @@
 package com.example.workouttracker.presentation.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -26,7 +24,7 @@ sealed class Screen(
     data object Calendar : Screen(
         route = "calendar",
         titleRu = "Календарь",
-        icon = Icons.Default.CalendarMonth
+        icon = Icons.Default.History
     )
 
     data object History : Screen(
@@ -37,29 +35,27 @@ sealed class Screen(
 
     data object Analytics : Screen(
         route = "analytics",
-        titleRu = "Аналитика",
-        icon = Icons.Default.TrendingUp
+        titleRu = "Прогресс",
+        icon = Icons.AutoMirrored.Filled.TrendingUp
     )
 
     data object Body : Screen(
         route = "body",
         titleRu = "Замеры",
-        icon = Icons.AutoMirrored.Filled.List
+        icon = Icons.Default.History
     )
 
     data object Export : Screen(
         route = "export",
-        titleRu = "Экспорт",
-        icon = Icons.Default.Share
+        titleRu = "Ещё",
+        icon = Icons.Default.MoreHoriz
     )
 
     companion object {
         val bottomNavItems = listOf(
             ActiveWorkout,
-            Calendar,
             History,
             Analytics,
-            Body,
             Export
         )
     }
