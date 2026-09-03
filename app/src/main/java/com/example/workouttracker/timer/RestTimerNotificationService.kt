@@ -14,6 +14,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.example.workouttracker.MainActivity
 import com.example.workouttracker.R
+import java.util.Locale
 
 /**
  * Helper and Foreground Service manager for Rest Timer background notifications and vibration.
@@ -71,7 +72,7 @@ class RestTimerNotificationService : Service() {
             val title = if (isExerciseBreak) "Отдых между упражнениями" else "Отдых между подходами"
             val mins = remainingSeconds / 60
             val secs = remainingSeconds % 60
-            val timeFormatted = String.format("%02d:%02d", mins, secs)
+            val timeFormatted = String.format(Locale.US, "%02d:%02d", mins, secs)
 
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)

@@ -2,6 +2,7 @@ package com.example.workouttracker.domain.usecase
 
 import com.example.workouttracker.domain.model.SetType
 import com.example.workouttracker.domain.model.WorkoutSessionWithSets
+import java.util.Locale
 
 data class DeloadAdvice(
     val isRecommended: Boolean,
@@ -49,7 +50,7 @@ class CheckDeloadRecommendationUseCase {
         if (hardSessionsCount >= 3 || overallAvgRir < 1.0) {
             return DeloadAdvice(
                 isRecommended = true,
-                reasonRu = "Высокое накопленное утомление ЦНС (средний RIR ${String.format("%.1f", overallAvgRir)} в последних $hardSessionsCount тренировках). Рекомендуется разгрузочная неделя (Deload -20% по весам) для суперкомпенсации.",
+                reasonRu = "Высокое накопленное утомление ЦНС (средний RIR ${String.format(Locale.US, "%.1f", overallAvgRir)} в последних $hardSessionsCount тренировках). Рекомендуется разгрузочная неделя (Deload -20% по весам) для суперкомпенсации.",
                 averageRir = overallAvgRir,
                 consecutiveHardSessions = hardSessionsCount,
                 suggestedWeightReductionPercent = 0.20
@@ -58,7 +59,7 @@ class CheckDeloadRecommendationUseCase {
 
         return DeloadAdvice(
             isRecommended = false,
-            reasonRu = "Нагрузка в норме (средний RIR ${String.format("%.1f", overallAvgRir)}). Продолжайте тренировки по плану.",
+            reasonRu = "Нагрузка в норме (средний RIR ${String.format(Locale.US, "%.1f", overallAvgRir)}). Продолжайте тренировки по плану.",
             averageRir = overallAvgRir,
             consecutiveHardSessions = hardSessionsCount
         )

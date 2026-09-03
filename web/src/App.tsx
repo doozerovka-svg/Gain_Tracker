@@ -25,7 +25,7 @@ export const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-sm font-extrabold tracking-tight text-white uppercase">
-                Gain Tracker 2.0
+                Gain Tracker 2.1
               </h1>
               <span className="text-[10px] font-medium text-sky-400 block -mt-0.5">
                 Local-First • Без ИИ • Силовой прогресс
@@ -34,13 +34,13 @@ export const App: React.FC = () => {
           </div>
 
           <a
-            href="./workout-tracker.apk?v=2.0"
-            download="workout-tracker-v2.0.apk"
+            href="./workout-tracker.apk?v=2.1"
+            download="workout-tracker-v2.1.apk"
             className="touch-target px-3 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
-            title="Скачать APK для Android v2.0"
+            title="Скачать APK для Android v2.1"
           >
             <Smartphone size={15} />
-            <span>APK v2.0</span>
+            <span>APK v2.1</span>
           </a>
         </div>
       </header>

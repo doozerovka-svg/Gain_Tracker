@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -93,7 +94,7 @@ fun HistoryScreen(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Список",
@@ -327,7 +328,6 @@ private fun SetRow(set: SetEntry) {
                             com.example.workouttracker.domain.model.SetType.WARMUP -> Color(0xFF388E3C).copy(alpha = 0.2f)
                             com.example.workouttracker.domain.model.SetType.DROP_SET -> Color(0xFFE65100).copy(alpha = 0.2f)
                             com.example.workouttracker.domain.model.SetType.FAILURE -> Color(0xFFD32F2F).copy(alpha = 0.2f)
-                            else -> MaterialTheme.colorScheme.surface
                         }
                     ) {
                         Text(
@@ -339,7 +339,6 @@ private fun SetRow(set: SetEntry) {
                                     com.example.workouttracker.domain.model.SetType.WARMUP -> Color(0xFF388E3C)
                                     com.example.workouttracker.domain.model.SetType.DROP_SET -> Color(0xFFE65100)
                                     com.example.workouttracker.domain.model.SetType.FAILURE -> Color(0xFFD32F2F)
-                                    else -> MaterialTheme.colorScheme.onSurface
                                 }
                             ),
                             modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)

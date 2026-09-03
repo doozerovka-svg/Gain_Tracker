@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class WorkoutRepositoryImpl(
     private val sessionDao: WorkoutSessionDao,
     private val setDao: SetEntryDao

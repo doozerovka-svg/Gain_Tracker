@@ -38,8 +38,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
@@ -382,7 +381,7 @@ private fun CompactWorkoutContent(
                                         .clickable { onPauseResumeTimer() }
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.SkipNext,
+                                    imageVector = Icons.Default.Close,
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(14.dp)
@@ -409,181 +408,108 @@ private fun CompactWorkoutContent(
             }
         }
 
-        // 2. Exercise Selection Row with Quick Swap
+        // 2. Active Exercise Section & Set Logging (Always visible for activeExercise)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = activeExercise?.name ?: "Выберите упражнение",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onOpenAddExerciseDialog() }
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    IconButton(
-                        onClick = onOpenPlateCalculator,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = "Калькулятор блинов",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = onOpenQuickSwap,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = "Быстрая замена",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    FilledTonalButton(
-                        onClick = onOpenAddExerciseDialog,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
-                    ) {
-                        Text("Выбрать / +", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-        }
-
-        // Adaptive Progression Recommendation Card (No Truncation / No Ellipsis)
-        uiState.progressionResult?.let { prog ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Text(
-                                text = "Рекомендация нагрузки (No-AI)",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-                        ) {
-                            Text(
-                                text = "Цель: ${String.format(Locale.US, "%.1f", prog.recommendedWeightKg)} кг × ${prog.recommendedReps}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = prog.explanationRu,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        ),
-                        softWrap = true,
-                        maxLines = Int.MAX_VALUE,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-            }
-        }
-
-        // Inline input moved to the table below
-
-        // 6. Completed Sets Grouped by Exercise (Gym Luxury Table)
-        if (uiState.exerciseSetsMap.isNotEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
+                    .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Exercise Header Row
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Выполненные упражнения (${uiState.exerciseSetsMap.size})",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Всего сетов: ${uiState.totalSetsCount}",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onOpenAddExerciseDialog() }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(8.dp)
+                            ) {}
+                            Text(
+                                text = activeExercise?.name ?: "Выберите упражнение",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        activeExercise?.let { ex ->
+                            val catName = uiState.categories.find { it.id == ex.categoryId }?.name ?: "Упражнение"
+                            Text(
+                                text = catName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = onOpenPlateCalculator,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FitnessCenter,
+                                contentDescription = "Калькулятор блинов",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onOpenQuickSwap,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SwapHoriz,
+                                contentDescription = "Быстрая замена",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = onOpenAddExerciseDialog,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
+                        ) {
+                            Text("Выбрать / +", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
                 }
 
-                uiState.exerciseSetsMap.forEach { (exerciseId, exerciseSets) ->
-                    val exercise = uiState.exercises.find { it.id == exerciseId }
-                    val isCurrentActive = activeExercise?.id == exerciseId
-                    val exerciseVolume = exerciseSets.filter { it.setType != SetType.WARMUP }.sumOf { it.weightKg * it.reps }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isCurrentActive)
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            else
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        border = if (isCurrentActive)
-                            androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                        else null
+                // Adaptive Progression Recommendation Card (if present)
+                uiState.progressionResult?.let { prog ->
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            // Exercise Header
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -591,446 +517,555 @@ private fun CompactWorkoutContent(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onSelectExercise(exerciseId) }
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = if (isCurrentActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                        modifier = Modifier.size(8.dp)
-                                    ) {}
-                                    Text(
-                                        text = exercise?.name ?: "Упражнение #$exerciseId",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
-                                    if (isCurrentActive) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primaryContainer
-                                        ) {
-                                            Text(
-                                                text = "Активно",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = "Рекомендация нагрузки (No-AI)",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
                                 }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                                 ) {
                                     Text(
-                                        text = "${exerciseSets.size} подх. • ${String.format(Locale.US, "%.0f", exerciseVolume)} кг",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = "Цель: ${String.format(Locale.US, "%.1f", prog.recommendedWeightKg)} кг × ${prog.recommendedReps}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    if (!isCurrentActive) {
-                                        FilledTonalButton(
-                                            onClick = { onSelectExercise(exerciseId) },
-                                            modifier = Modifier.defaultMinSize(minWidth = 36.dp, minHeight = 30.dp),
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Выбрать", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold))
-                                        }
-                                    }
                                 }
                             }
 
-                            // Gym Table: Structured List of Sets
-                            Column(
+                            Text(
+                                text = prog.explanationRu,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                                softWrap = true,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+
+                // Gym Table: Structured List of Sets for Active Exercise
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(vertical = 4.dp)
+                ) {
+                    // Table Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "СЕТ",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            ),
+                            modifier = Modifier.width(36.dp)
+                        )
+                        Text(
+                            text = "ТИП",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            ),
+                            modifier = Modifier.width(72.dp)
+                        )
+                        Text(
+                            text = "ВЕС × ПОВТОРЕНИЯ",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "RIR / 1RM",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.outline
+                            ),
+                            modifier = Modifier.width(76.dp),
+                            textAlign = TextAlign.End
+                        )
+                        Spacer(modifier = Modifier.width(32.dp))
+                    }
+
+                    if (setsForActiveExercise.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 14.dp, horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Подходы еще не записаны. Настройте вес и повторения ниже и нажмите «✓».",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        setsForActiveExercise.forEachIndexed { _, set ->
+                            val set1RM = if (set.reps > 0) set.weightKg * (1.0 + set.reps / 30.0) else 0.0
+                            androidx.compose.material3.HorizontalDivider(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            )
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-                                    .padding(vertical = 4.dp)
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Table Header
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                // Set Number Badge
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "${set.setNumber}",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Black,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                // Set Type Chip
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = when (set.setType) {
+                                        SetType.WARMUP -> Color(0xFF22C55E).copy(alpha = 0.18f)
+                                        SetType.DROP_SET -> Color(0xFFF59E0B).copy(alpha = 0.18f)
+                                        SetType.FAILURE -> Color(0xFFEF4444).copy(alpha = 0.18f)
+                                        SetType.NORMAL -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                    },
+                                    modifier = Modifier.width(68.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 3.dp)) {
+                                        Text(
+                                            text = when (set.setType) {
+                                                SetType.WARMUP -> "Разминка"
+                                                SetType.DROP_SET -> "Дропсет"
+                                                SetType.FAILURE -> "Отказ"
+                                                SetType.NORMAL -> "Обычный"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp,
+                                                color = when (set.setType) {
+                                                    SetType.WARMUP -> Color(0xFF22C55E)
+                                                    SetType.DROP_SET -> Color(0xFFF59E0B)
+                                                    SetType.FAILURE -> Color(0xFFEF4444)
+                                                    SetType.NORMAL -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
+                                            )
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                // Large Bold Weight × Reps
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${String.format(Locale.US, "%.1f", set.weightKg)} кг × ${set.reps}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                // RIR and 1RM
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    modifier = Modifier.width(76.dp)
                                 ) {
                                     Text(
-                                        text = "СЕТ",
+                                        text = "RIR ${set.rir}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.outline
-                                        ),
-                                        modifier = Modifier.width(36.dp)
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                                     )
-                                    Text(
-                                        text = "ТИП",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.outline
-                                        ),
-                                        modifier = Modifier.width(72.dp)
-                                    )
-                                    Text(
-                                        text = "ВЕС × ПОВТОРЕНИЯ",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.outline
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Text(
-                                        text = "RIR / 1RM",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.outline
-                                        ),
-                                        modifier = Modifier.width(76.dp),
-                                        textAlign = TextAlign.End
-                                    )
-                                    Spacer(modifier = Modifier.width(32.dp))
-                                }
-
-                                exerciseSets.forEachIndexed { _, set ->
-                                    val set1RM = if (set.reps > 0) set.weightKg * (1.0 + set.reps / 30.0) else 0.0
-                                    androidx.compose.material3.HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                    )
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Set Number Badge
-                                        Surface(
-                                            shape = androidx.compose.foundation.shape.CircleShape,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = "${set.setNumber}",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Black,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                        fontSize = 11.sp
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        // Set Type Chip
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = when (set.setType) {
-                                                SetType.WARMUP -> Color(0xFF22C55E).copy(alpha = 0.18f)
-                                                SetType.DROP_SET -> Color(0xFFF59E0B).copy(alpha = 0.18f)
-                                                SetType.FAILURE -> Color(0xFFEF4444).copy(alpha = 0.18f)
-                                                SetType.NORMAL -> MaterialTheme.colorScheme.surfaceContainerHighest
-                                            },
-                                            modifier = Modifier.width(68.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 3.dp)) {
-                                                Text(
-                                                    text = when (set.setType) {
-                                                        SetType.WARMUP -> "Разминка"
-                                                        SetType.DROP_SET -> "Дропсет"
-                                                        SetType.FAILURE -> "Отказ"
-                                                        SetType.NORMAL -> "Обычный"
-                                                    },
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 10.sp,
-                                                        color = when (set.setType) {
-                                                            SetType.WARMUP -> Color(0xFF22C55E)
-                                                            SetType.DROP_SET -> Color(0xFFF59E0B)
-                                                            SetType.FAILURE -> Color(0xFFEF4444)
-                                                            SetType.NORMAL -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                        }
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        // Large Bold Weight × Reps
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "${String.format(Locale.US, "%.1f", set.weightKg)} кг × ${set.reps}",
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = FontWeight.Black,
-                                                    fontSize = 15.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.onSurface
+                                    if (set.setType != SetType.WARMUP && set1RM > 0) {
+                                        Text(
+                                            text = "${String.format(Locale.US, "%.0f", set1RM)} кг 1RM",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.outline
                                             )
-                                        }
-
-                                        // RIR and 1RM
-                                        Column(
-                                            horizontalAlignment = Alignment.End,
-                                            modifier = Modifier.width(76.dp)
-                                        ) {
-                                            Text(
-                                                text = "RIR ${set.rir}",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                            )
-                                            if (set.setType != SetType.WARMUP && set1RM > 0) {
-                                                Text(
-                                                    text = "${String.format(Locale.US, "%.0f", set1RM)} кг 1RM",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.outline
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        // Delete action
-                                        IconButton(
-                                            onClick = { onDeleteSet(set.id) },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Удалить подход",
-                                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
+                                        )
                                     }
                                 }
-                                
-                                if (isCurrentActive) {
-                                    androidx.compose.material3.HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+
+                                // Delete action
+                                IconButton(
+                                    onClick = { onDeleteSet(set.id) },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Удалить подход",
+                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 6.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Set Number / Type Toggler
-                                        Surface(
-                                            shape = androidx.compose.foundation.shape.CircleShape,
-                                            color = when (uiState.selectedSetType) {
-                                                SetType.WARMUP -> Color(0xFF22C55E).copy(alpha = 0.8f)
-                                                SetType.DROP_SET -> Color(0xFFF59E0B).copy(alpha = 0.8f)
-                                                SetType.FAILURE -> Color(0xFFEF4444).copy(alpha = 0.8f)
-                                                SetType.NORMAL -> MaterialTheme.colorScheme.primary
-                                            },
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .clickable { 
-                                                    val nextType = when (uiState.selectedSetType) {
-                                                        SetType.NORMAL -> SetType.WARMUP
-                                                        SetType.WARMUP -> SetType.DROP_SET
-                                                        SetType.DROP_SET -> SetType.FAILURE
-                                                        SetType.FAILURE -> SetType.NORMAL
-                                                    }
-                                                    onSetSetType(nextType)
-                                                }
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                val prefix = when(uiState.selectedSetType) {
-                                                    SetType.WARMUP -> "W"
-                                                    SetType.DROP_SET -> "D"
-                                                    SetType.FAILURE -> "F"
-                                                    SetType.NORMAL -> "$nextSetNumber"
-                                                }
-                                                Text(
-                                                    text = prefix,
-                                                    style = MaterialTheme.typography.labelMedium.copy(
-                                                        fontWeight = FontWeight.Black,
-                                                        color = MaterialTheme.colorScheme.onPrimary
-                                                    )
-                                                )
-                                            }
-                                        }
+                                }
+                            }
+                        }
+                    }
 
-                                        Spacer(modifier = Modifier.width(8.dp))
+                    // Input Controls Row for Logging Next Set
+                    androidx.compose.material3.HorizontalDivider(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    )
 
-                                        // Weight trigger
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (activeWheelField == "weight") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                            border = if (activeWheelField == "weight") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                                            modifier = Modifier
-                                                .width(76.dp)
-                                                .height(46.dp)
-                                                .clickable { activeWheelField = if (activeWheelField == "weight") null else "weight" }
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = String.format(Locale.US, "%.1f", uiState.inputWeightKg),
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        fontWeight = FontWeight.Black,
-                                                        fontSize = 15.sp,
-                                                        color = MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                )
-                                                Text(
-                                                    text = " кг",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.outline
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("×", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                                        Spacer(modifier = Modifier.width(4.dp))
-
-                                        // Reps trigger
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (activeWheelField == "reps") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                            border = if (activeWheelField == "reps") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                                            modifier = Modifier
-                                                .width(64.dp)
-                                                .height(46.dp)
-                                                .clickable { activeWheelField = if (activeWheelField == "reps") null else "reps" }
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = "${uiState.inputReps}",
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        fontWeight = FontWeight.Black,
-                                                        fontSize = 15.sp,
-                                                        color = MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                )
-                                                Text(
-                                                    text = " п.",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.outline
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.width(6.dp))
-
-                                        // RIR trigger
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (activeWheelField == "rir") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                            border = if (activeWheelField == "rir") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                                            modifier = Modifier
-                                                .width(58.dp)
-                                                .height(46.dp)
-                                                .clickable { activeWheelField = if (activeWheelField == "rir") null else "rir" }
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = "${uiState.inputRir}",
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        fontWeight = FontWeight.Black,
-                                                        fontSize = 15.sp,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
-                                                )
-                                                Text(
-                                                    text = " RIR",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontSize = 9.sp,
-                                                        color = MaterialTheme.colorScheme.outline
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.weight(1f))
-
-                                        // Save Button
-                                        IconButton(
-                                            onClick = onSaveSet,
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Сохранить",
-                                                tint = MaterialTheme.colorScheme.onPrimary
-                                            )
-                                        }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Set Number / Type Toggler
+                        Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = when (uiState.selectedSetType) {
+                                SetType.WARMUP -> Color(0xFF22C55E).copy(alpha = 0.8f)
+                                SetType.DROP_SET -> Color(0xFFF59E0B).copy(alpha = 0.8f)
+                                SetType.FAILURE -> Color(0xFFEF4444).copy(alpha = 0.8f)
+                                SetType.NORMAL -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clickable {
+                                    val nextType = when (uiState.selectedSetType) {
+                                        SetType.NORMAL -> SetType.WARMUP
+                                        SetType.WARMUP -> SetType.DROP_SET
+                                        SetType.DROP_SET -> SetType.FAILURE
+                                        SetType.FAILURE -> SetType.NORMAL
                                     }
+                                    onSetSetType(nextType)
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                val prefix = when (uiState.selectedSetType) {
+                                    SetType.WARMUP -> "W"
+                                    SetType.DROP_SET -> "D"
+                                    SetType.FAILURE -> "F"
+                                    SetType.NORMAL -> "$nextSetNumber"
+                                }
+                                Text(
+                                    text = prefix,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+                        }
 
-                                    // 3D Rotary Side-Wheel Picker
-                                    AnimatedVisibility(
-                                        visible = activeWheelField != null,
-                                        enter = expandVertically() + fadeIn(),
-                                        exit = shrinkVertically() + fadeOut()
-                                    ) {
-                                        when (activeWheelField) {
-                                            "weight" -> RotarySideWheelPicker(
-                                                value = uiState.inputWeightKg,
-                                                onValueChange = { onSetWeight(it) },
-                                                min = 0.0,
-                                                max = 500.0,
-                                                step = if (uiState.activeExercise?.isBodyweight == true) 1.25 else 0.5,
-                                                label = "Регулировка веса",
-                                                unit = "кг",
-                                                quickSteps = listOf(-5.0, -2.5, 2.5, 5.0),
-                                                onClose = { activeWheelField = null }
-                                            )
-                                            "reps" -> RotarySideWheelPicker(
-                                                value = uiState.inputReps.toDouble(),
-                                                onValueChange = { onSetReps(it.toInt()) },
-                                                min = 1.0,
-                                                max = 100.0,
-                                                step = 1.0,
-                                                label = "Регулировка повторений",
-                                                unit = "повт",
-                                                quickSteps = listOf(-2.0, -1.0, 1.0, 2.0),
-                                                onClose = { activeWheelField = null }
-                                            )
-                                            "rir" -> RotarySideWheelPicker(
-                                                value = uiState.inputRir.toDouble(),
-                                                onValueChange = { onSetRir(it.toInt()) },
-                                                min = 0.0,
-                                                max = 5.0,
-                                                step = 1.0,
-                                                label = "Запас сил (RIR)",
-                                                unit = "RIR",
-                                                quickSteps = listOf(-1.0, 1.0),
-                                                onClose = { activeWheelField = null }
-                                            )
-                                        }
-                                    }
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Weight trigger
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (activeWheelField == "weight") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (activeWheelField == "weight") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .width(76.dp)
+                                .height(46.dp)
+                                .clickable { activeWheelField = if (activeWheelField == "weight") null else "weight" }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = String.format(Locale.US, "%.1f", uiState.inputWeightKg),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                                Text(
+                                    text = " кг",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("×", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Reps trigger
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (activeWheelField == "reps") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (activeWheelField == "reps") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .width(64.dp)
+                                .height(46.dp)
+                                .clickable { activeWheelField = if (activeWheelField == "reps") null else "reps" }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "${uiState.inputReps}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                                Text(
+                                    text = " п.",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // RIR trigger
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (activeWheelField == "rir") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            border = if (activeWheelField == "rir") androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .width(58.dp)
+                                .height(46.dp)
+                                .clickable { activeWheelField = if (activeWheelField == "rir") null else "rir" }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "${uiState.inputRir}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                                Text(
+                                    text = " RIR",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Keypad Toggle
+                        IconButton(
+                            onClick = onToggleKeypad,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Keyboard,
+                                contentDescription = "Клавиатура",
+                                tint = if (uiState.isNumericKeypadOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Save Button
+                        IconButton(
+                            onClick = onSaveSet,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Сохранить",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+
+                    // Quick Weight Increment / Decrement Strip
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(-5.0, -2.5, 2.5, 5.0).forEach { delta ->
+                            FilledTonalButton(
+                                onClick = { onIncrementWeight(delta) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp),
+                                contentPadding = PaddingValues(0.dp),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = if (delta > 0) "+${delta}к" else "${delta}к",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
+                    }
+
+                    // 3D Rotary Side-Wheel Picker
+                    AnimatedVisibility(
+                        visible = activeWheelField != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        when (activeWheelField) {
+                            "weight" -> RotarySideWheelPicker(
+                                value = uiState.inputWeightKg,
+                                onValueChange = { onSetWeight(it) },
+                                min = 0.0,
+                                max = 500.0,
+                                step = if (uiState.activeExercise?.isBodyweight == true) 1.25 else 0.5,
+                                label = "Регулировка веса",
+                                unit = "кг",
+                                quickSteps = listOf(-5.0, -2.5, 2.5, 5.0),
+                                onClose = { activeWheelField = null }
+                            )
+                            "reps" -> RotarySideWheelPicker(
+                                value = uiState.inputReps.toDouble(),
+                                onValueChange = { onSetReps(it.toInt()) },
+                                min = 1.0,
+                                max = 100.0,
+                                step = 1.0,
+                                label = "Регулировка повторений",
+                                unit = "повт",
+                                quickSteps = listOf(-2.0, -1.0, 1.0, 2.0),
+                                onClose = { activeWheelField = null }
+                            )
+                            "rir" -> RotarySideWheelPicker(
+                                value = uiState.inputRir.toDouble(),
+                                onValueChange = { onSetRir(it.toInt()) },
+                                min = 0.0,
+                                max = 5.0,
+                                step = 1.0,
+                                label = "Запас сил (RIR)",
+                                unit = "RIR",
+                                quickSteps = listOf(-1.0, 1.0),
+                                onClose = { activeWheelField = null }
+                            )
+                        }
+                    }
+
+                    // Numeric Weight Keypad
+                    AnimatedVisibility(
+                        visible = uiState.isNumericKeypadOpen,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        NumericWeightKeypad(
+                            currentInput = uiState.rawWeightString,
+                            onInputChange = onUpdateRawWeight,
+                            onConfirm = onToggleKeypad,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Other Completed Exercises in this Workout Session (if any)
+        val otherExercisesSetsMap = uiState.exerciseSetsMap.filterKeys { it != activeExercise?.id }
+        if (otherExercisesSetsMap.isNotEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Другие упражнения в тренировке (${otherExercisesSetsMap.size})",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                otherExercisesSetsMap.forEach { (exerciseId, exerciseSets) ->
+                    val exercise = uiState.exercises.find { it.id == exerciseId }
+                    val exerciseVolume = exerciseSets.filter { it.setType != SetType.WARMUP }.sumOf { it.weightKg * it.reps }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = exercise?.name ?: "Упражнение #$exerciseId",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${exerciseSets.size} подх. • ${String.format(Locale.US, "%.0f", exerciseVolume)} кг",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                FilledTonalButton(
+                                    onClick = { onSelectExercise(exerciseId) },
+                                    modifier = Modifier.defaultMinSize(minWidth = 36.dp, minHeight = 30.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Выбрать", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold))
                                 }
                             }
                         }
@@ -1126,7 +1161,7 @@ private fun ExerciseSelectionDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Sort, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     ExerciseSortOrder.values().forEach { order ->
                         val isSelected = uiState.exerciseSortOrder == order
                         Surface(
