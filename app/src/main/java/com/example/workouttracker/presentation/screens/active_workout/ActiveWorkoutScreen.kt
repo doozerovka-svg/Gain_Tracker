@@ -944,8 +944,10 @@ private fun CompactWorkoutContent(
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    text = if (delta > 0) "+${delta}к" else "${delta}к",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    text = if (delta > 0) "+$delta" else "$delta",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }

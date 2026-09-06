@@ -16,8 +16,13 @@ app/build
 local.properties
 .kotlin
 
+# Keystore
+*.keystore
+*.jks
+
 # Node & Web
 node_modules/
 web/node_modules/
 web/dist/
 *.log
+
