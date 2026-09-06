@@ -237,7 +237,9 @@ fun RotarySideWheelPicker(
                                         }
                                     }
                                 }
-                            }
+                            },
+                            onDragEnd = { dragAccumulator = 0f },
+                            onDragCancel = { dragAccumulator = 0f }
                         )
                     }
             ) {
@@ -250,14 +252,25 @@ fun RotarySideWheelPicker(
                     val centerY = height / 2f
                     val visibleTicks = 16
 
+                    val pixelsPerStep = 24f
+                    val continuousValue = value + (dragAccumulator / pixelsPerStep) * step
+                    val clampedContinuousValue = continuousValue.coerceIn(min, max)
+
+                    val centerIndex = (clampedContinuousValue / step).roundToInt()
+
                     // Draw cylindrical tick marks
-                    for (i in -visibleTicks..visibleTicks) {
-                        val tickVal = value + i * step
-                        val isMajor = (tickVal / (step * 5)).roundToInt().toDouble() == tickVal / (step * 5)
-                        val isMid = (tickVal / (step * 2)).roundToInt().toDouble() == tickVal / (step * 2)
+                    for (k in (centerIndex - visibleTicks)..(centerIndex + visibleTicks)) {
+                        val tickVal = k * step
+                        val majorRatio = tickVal / (step * 5)
+                        val isMajor = kotlin.math.abs(majorRatio.roundToInt() - majorRatio) < 0.01
+                        val midRatio = tickVal / (step * 2)
+                        val isMid = kotlin.math.abs(midRatio.roundToInt() - midRatio) < 0.01
+
+                        val offsetSteps = (tickVal - clampedContinuousValue) / step
+                        val norm = offsetSteps.toFloat() / visibleTicks
+                        if (norm < -1f || norm > 1f) continue
 
                         // 3D Cylindrical curve projection
-                        val norm = i.toFloat() / visibleTicks
                         val angle = norm * (PI.toFloat() / 2.2f)
                         val cosVal = cos(angle)
                         val sinVal = sin(angle)

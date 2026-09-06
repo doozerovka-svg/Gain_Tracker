@@ -27,6 +27,7 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragOffsetSteps, setDragOffsetSteps] = useState(0);
   const dragStartX = useRef(0);
   const dragStartValue = useRef(value);
   const lastTickValue = useRef(value);
@@ -40,6 +41,7 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     setIsDragging(true);
+    setDragOffsetSteps(0);
     dragStartX.current = e.clientX;
     dragStartValue.current = value;
     lastTickValue.current = value;
@@ -52,6 +54,8 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
     // 1 step per ~14px of horizontal drag
     const pixelsPerStep = 14;
     const deltaSteps = deltaX / pixelsPerStep;
+    setDragOffsetSteps(deltaSteps);
+
     const newValue = clampValue(dragStartValue.current + deltaSteps * step);
 
     if (newValue !== value) {
@@ -65,6 +69,7 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
 
   const handlePointerUp = (e: React.PointerEvent) => {
     setIsDragging(false);
+    setDragOffsetSteps(0);
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
@@ -83,16 +88,27 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
   };
 
   // Generate graduation lines for the 3D cylinder
-  // We simulate a cylindrical drum with 31 ticks visible (-15 to +15 relative to center)
+  // Decoupled continuous visual value for smooth dragging
+  const continuousValue = isDragging ? dragStartValue.current + dragOffsetSteps * step : value;
+  const clampedContinuousValue = Math.max(min, Math.min(max, continuousValue));
+
   const ticks = [];
   const visibleRange = 16;
-  for (let i = -visibleRange; i <= visibleRange; i++) {
-    const tickVal = value + i * step;
-    const isMajor = Math.round(tickVal / (step * 5)) === tickVal / (step * 5);
-    const isMid = Math.round(tickVal / (step * 2)) === tickVal / (step * 2);
+  const centerIndex = Math.round(clampedContinuousValue / step);
+
+  for (let i = centerIndex - visibleRange; i <= centerIndex + visibleRange; i++) {
+    const tickVal = Number((i * step).toFixed(2));
     
+    // IEEE 754 precision safe modulo
+    const isMajor = Math.abs(Math.round(tickVal / (step * 5)) - tickVal / (step * 5)) < 0.01;
+    const isMid = Math.abs(Math.round(tickVal / (step * 2)) - tickVal / (step * 2)) < 0.01;
+    
+    // Physical offset from center
+    const offsetSteps = (tickVal - clampedContinuousValue) / step;
+    const norm = offsetSteps / visibleRange;
+    if (norm < -1 || norm > 1) continue;
+
     // Cylindrical projection factor (-1 to 1)
-    const norm = i / visibleRange;
     const angle = norm * (Math.PI / 2.2); // curve angle
     const cosVal = Math.cos(angle);
     const opacity = Math.max(0.1, cosVal ** 1.8);
@@ -101,7 +117,7 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
 
     ticks.push({
       index: i,
-      val: tickVal,
+      val: Number(tickVal.toFixed(step < 1 ? 1 : 0)),
       posX,
       height,
       opacity,
