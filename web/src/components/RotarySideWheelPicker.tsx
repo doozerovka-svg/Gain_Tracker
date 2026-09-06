@@ -70,7 +70,7 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
     const deltaSteps = deltaX / pixelsPerStep;
     setDragOffsetSteps(deltaSteps);
 
-    const newValue = clampValue(dragStartValue.current + deltaSteps * step);
+    const newValue = clampValue(dragStartValue.current - deltaSteps * step);
     if (newValue !== value) {
       onChange(newValue);
       if (Math.abs(newValue - lastTickValue.current) >= step) {
@@ -100,8 +100,8 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
   };
 
   // Generate graduation lines for the 3D cylinder
-  // Decoupled continuous visual value for smooth dragging
-  const continuousValue = isDragging ? dragStartValue.current + dragOffsetSteps * step : value;
+  // Decoupled continuous visual value for smooth dragging (swipe left = increase, swipe right = decrease)
+  const continuousValue = isDragging ? dragStartValue.current - dragOffsetSteps * step : value;
   const clampedContinuousValue = Math.max(min, Math.min(max, continuousValue));
 
   const ticks = [];
@@ -116,8 +116,8 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
     const isMajor = Math.abs(Math.round(tickVal / (step * 5)) - tickVal / (step * 5)) < 0.01;
     const isMid = Math.abs(Math.round(tickVal / (step * 2)) - tickVal / (step * 2)) < 0.01;
 
-    // Physical offset from center (inverted so ridges move with the drag direction)
-    const offsetSteps = (clampedContinuousValue - tickVal) / step;
+    // Physical offset from center: pulling left brings larger numbers from the right into the center
+    const offsetSteps = (tickVal - clampedContinuousValue) / step;
     const norm = offsetSteps / visibleRange;
     if (norm < -1 || norm > 1) continue;
 

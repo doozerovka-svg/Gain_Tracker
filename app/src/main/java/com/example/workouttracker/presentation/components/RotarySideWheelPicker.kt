@@ -240,7 +240,7 @@ fun RotarySideWheelPicker(
                                 change.consume()
                                 totalDragPx += dragAmount
                                 val steps = (totalDragPx / pixelsPerStep).toInt()
-                                val next = clampAndRound(dragStartValue + steps * currentStep)
+                                val next = clampAndRound(dragStartValue - steps * currentStep)
                                 if (next != currentValue) {
                                     currentOnValueChange(next)
                                     if (next != lastHapticValue) {
@@ -271,7 +271,7 @@ fun RotarySideWheelPicker(
 
                     val pixelsPerStep = 14.dp.toPx()
                     val continuousValue = if (isDragging) {
-                        (dragStartValue + (totalDragPx / pixelsPerStep) * currentStep).coerceIn(currentMin, currentMax)
+                        (dragStartValue - (totalDragPx / pixelsPerStep) * currentStep).coerceIn(currentMin, currentMax)
                     } else {
                         currentValue
                     }
@@ -288,7 +288,7 @@ fun RotarySideWheelPicker(
                         val midRatio = tickVal / (currentStep * 2)
                         val isMid = kotlin.math.abs(midRatio.roundToInt() - midRatio) < 0.01
 
-                        val offsetSteps = (continuousValue - tickVal) / currentStep
+                        val offsetSteps = (tickVal - continuousValue) / currentStep
                         val norm = offsetSteps.toFloat() / visibleTicks
                         if (norm < -1f || norm > 1f) continue
 
