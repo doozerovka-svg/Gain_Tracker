@@ -116,8 +116,8 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
     const isMajor = Math.abs(Math.round(tickVal / (step * 5)) - tickVal / (step * 5)) < 0.01;
     const isMid = Math.abs(Math.round(tickVal / (step * 2)) - tickVal / (step * 2)) < 0.01;
 
-    // Physical offset from center
-    const offsetSteps = (tickVal - clampedContinuousValue) / step;
+    // Physical offset from center (inverted so ridges move with the drag direction)
+    const offsetSteps = (clampedContinuousValue - tickVal) / step;
     const norm = offsetSteps / visibleRange;
     if (norm < -1 || norm > 1) continue;
 
@@ -220,12 +220,6 @@ export const RotarySideWheelPicker: React.FC<Props> = ({
                   }`}
                   style={{ height: `${t.height}px` }}
                 />
-                {/* Tick Label for major marks */}
-                {t.isMajor && (
-                  <span className="text-[9px] font-black text-neutral-400 mt-1 font-mono">
-                    {t.val}
-                  </span>
-                )}
               </div>
             ))}
           </div>

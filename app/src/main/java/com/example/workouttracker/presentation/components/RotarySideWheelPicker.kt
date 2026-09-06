@@ -288,7 +288,7 @@ fun RotarySideWheelPicker(
                         val midRatio = tickVal / (currentStep * 2)
                         val isMid = kotlin.math.abs(midRatio.roundToInt() - midRatio) < 0.01
 
-                        val offsetSteps = (tickVal - continuousValue) / currentStep
+                        val offsetSteps = (continuousValue - tickVal) / currentStep
                         val norm = offsetSteps.toFloat() / visibleTicks
                         if (norm < -1f || norm > 1f) continue
 
