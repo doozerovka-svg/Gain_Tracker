@@ -46,7 +46,7 @@ export const App: React.FC = () => {
       </header>
 
       {/* Main Content View */}
-      <main className="flex-1 px-3 sm:px-4 py-4 max-w-xl mx-auto w-full">
+      <main className="flex-1 px-3 sm:px-4 pt-4 pb-28 max-w-xl mx-auto w-full">
         {activeTab === 'active' && <ActiveWorkoutTab onRefresh={handleRefresh} />}
         {activeTab === 'history' && (
           <HistoryTab

@@ -34,9 +34,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,14 +83,24 @@ fun RotarySideWheelPicker(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+
+    val currentValue by rememberUpdatedState(value)
+    val currentStep by rememberUpdatedState(step)
+    val currentMin by rememberUpdatedState(min)
+    val currentMax by rememberUpdatedState(max)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+
+    var isDragging by remember { mutableStateOf(false) }
+    var dragStartValue by remember { mutableDoubleStateOf(0.0) }
+    var totalDragPx by remember { mutableFloatStateOf(0f) }
     var lastHapticValue by remember(value) { mutableStateOf(value) }
 
     fun clampAndRound(raw: Double): Double {
-        val factor = 1.0 / step
+        val factor = 1.0 / currentStep
         val rounded = (raw * factor).roundToInt() / factor
-        val clamped = rounded.coerceIn(min, max)
-        return if (step < 1.0) {
+        val clamped = rounded.coerceIn(currentMin, currentMax)
+        return if (currentStep < 1.0) {
             String.format(Locale.US, "%.1f", clamped).toDouble()
         } else {
             clamped.roundToInt().toDouble()
@@ -217,29 +229,34 @@ fun RotarySideWheelPicker(
                     )
                     .border(1.dp, Color(0xFF262626), RoundedCornerShape(12.dp))
                     .pointerInput(Unit) {
+                        val pixelsPerStep = with(density) { 14.dp.toPx() }
                         detectHorizontalDragGestures(
                             onDragStart = {
-                                dragAccumulator = 0f
+                                isDragging = true
+                                dragStartValue = currentValue
+                                totalDragPx = 0f
                             },
                             onHorizontalDrag = { change, dragAmount ->
                                 change.consume()
-                                dragAccumulator += dragAmount
-                                val pixelsPerStep = 24f // ~24px drag per step increment
-                                val stepsDelta = (dragAccumulator / pixelsPerStep).toInt()
-                                if (stepsDelta != 0) {
-                                    val next = clampAndRound(value + stepsDelta * step)
-                                    dragAccumulator -= stepsDelta * pixelsPerStep
-                                    if (next != value) {
-                                        onValueChange(next)
-                                        if (next != lastHapticValue) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            lastHapticValue = next
-                                        }
+                                totalDragPx += dragAmount
+                                val steps = (totalDragPx / pixelsPerStep).toInt()
+                                val next = clampAndRound(dragStartValue + steps * currentStep)
+                                if (next != currentValue) {
+                                    currentOnValueChange(next)
+                                    if (next != lastHapticValue) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        lastHapticValue = next
                                     }
                                 }
                             },
-                            onDragEnd = { dragAccumulator = 0f },
-                            onDragCancel = { dragAccumulator = 0f }
+                            onDragEnd = {
+                                isDragging = false
+                                totalDragPx = 0f
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                                totalDragPx = 0f
+                            }
                         )
                     }
             ) {
@@ -252,21 +269,26 @@ fun RotarySideWheelPicker(
                     val centerY = height / 2f
                     val visibleTicks = 16
 
-                    val pixelsPerStep = 24f
-                    val continuousValue = value + (dragAccumulator / pixelsPerStep) * step
-                    val clampedContinuousValue = continuousValue.coerceIn(min, max)
+                    val pixelsPerStep = 14.dp.toPx()
+                    val continuousValue = if (isDragging) {
+                        (dragStartValue + (totalDragPx / pixelsPerStep) * currentStep).coerceIn(currentMin, currentMax)
+                    } else {
+                        currentValue
+                    }
 
-                    val centerIndex = (clampedContinuousValue / step).roundToInt()
+                    val centerIndex = (continuousValue / currentStep).roundToInt()
 
                     // Draw cylindrical tick marks
                     for (k in (centerIndex - visibleTicks)..(centerIndex + visibleTicks)) {
-                        val tickVal = k * step
-                        val majorRatio = tickVal / (step * 5)
+                        val tickVal = k * currentStep
+                        if (tickVal < currentMin || tickVal > currentMax) continue
+
+                        val majorRatio = tickVal / (currentStep * 5)
                         val isMajor = kotlin.math.abs(majorRatio.roundToInt() - majorRatio) < 0.01
-                        val midRatio = tickVal / (step * 2)
+                        val midRatio = tickVal / (currentStep * 2)
                         val isMid = kotlin.math.abs(midRatio.roundToInt() - midRatio) < 0.01
 
-                        val offsetSteps = (tickVal - clampedContinuousValue) / step
+                        val offsetSteps = (tickVal - continuousValue) / currentStep
                         val norm = offsetSteps.toFloat() / visibleTicks
                         if (norm < -1f || norm > 1f) continue
 
@@ -340,6 +362,43 @@ fun RotarySideWheelPicker(
                     drawPath(pointerPathBottom, color = primaryColor)
                 }
 
+                // Tactile Side Nudge Buttons (- / +)
+                IconButton(
+                    onClick = {
+                        val next = clampAndRound(currentValue - currentStep)
+                        if (next != currentValue) {
+                            currentOnValueChange(next)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 4.dp)
+                        .size(28.dp)
+                        .background(Color(0xFF1E1E1E).copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+                        .border(1.dp, Color(0xFF333333), RoundedCornerShape(14.dp))
+                ) {
+                    Text("−", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                }
+
+                IconButton(
+                    onClick = {
+                        val next = clampAndRound(currentValue + currentStep)
+                        if (next != currentValue) {
+                            currentOnValueChange(next)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 4.dp)
+                        .size(28.dp)
+                        .background(Color(0xFF1E1E1E).copy(alpha = 0.85f), RoundedCornerShape(14.dp))
+                        .border(1.dp, Color(0xFF333333), RoundedCornerShape(14.dp))
+                ) {
+                    Text("+", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                }
+
                 // Subtitle helper hint
                 Text(
                     text = "⇄ ВЛЕВО-ВПРАВО ДЛЯ ВРАЩЕНИЯ",
@@ -349,8 +408,8 @@ fun RotarySideWheelPicker(
                         color = Color.DarkGray
                     ),
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 8.dp, bottom = 4.dp)
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 4.dp)
                 )
             }
         }
